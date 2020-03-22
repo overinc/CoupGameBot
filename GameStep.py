@@ -11,14 +11,18 @@ class StepAction(Enum):
     steal = 6
     takeThreeCoins = 7
 
-StepActions = [StepAction.takeCoin.name,
-               StepAction.tryTakeTwo.name,
-               StepAction.simpleShot.name,
-               StepAction.shuffle.name,
-               StepAction.snipeShot.name,
-               StepAction.steal.name,
-               StepAction.takeThreeCoins.name]
+    chooseCardToOpen = 11
 
+
+StepPrimaryActions = [StepAction.takeCoin.name,
+                      StepAction.tryTakeTwo.name,
+                      StepAction.simpleShot.name,
+                      StepAction.shuffle.name,
+                      StepAction.snipeShot.name,
+                      StepAction.steal.name,
+                      StepAction.takeThreeCoins.name]
+
+ACTION_DELIMETER = '|'
 
 class PlayerStepState(Enum):
     Unknown = 1
@@ -43,17 +47,18 @@ class PlayerStep:
         self.game = game
 
         self.activePlayer = activePlayer
-        self.opponentPlayer = None
+        self.targetPlayer = None
 
         self.stateMachine = PlayerStateMachine()
 
-        self.currentActivePersonalMessageId = 0
+        self.currentActivePlayerPersonalMessageId = 0
+        self.currentTargetPlayerPersonalMessageId = 0
 
     def startStep(self):
         self.game.sendCurrentGameState()
         sendMessage(self.game.gameGroupchatId, 'Ход {}'.format(self.activePlayer.user.combinedNameStrig()))
 
-        personalMessage = self.activePlayer.playerStateString('\nВаш ход!')
+        personalMessage = self.activePlayer.playerStateString('\nВаш ход!', True)
 
         buttons = []
         if self.activePlayer.coinsCount >= 10:
@@ -70,10 +75,14 @@ class PlayerStep:
             buttons.append([{'text': 'Прикинуться Captain', 'callbackData': '{}'.format(StepAction.steal.name)}])
             buttons.append([{'text': 'Прикинуться Duke', 'callbackData': '{}'.format(StepAction.takeThreeCoins.name)}])
 
-        self.currentActivePersonalMessageId = sendMessage(self.activePlayer.user.userId, personalMessage, buttons)
+        self.currentActivePlayerPersonalMessageId = sendMessage(self.activePlayer.user.userId, personalMessage, buttons)
 
     def handleStepPrimaryAction(self, action, chatId, userId, queryId, messageId):
-        if self.currentActivePersonalMessageId != messageId:
+        if userId != self.activePlayer.user.userId:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+            return
+
+        if self.currentActivePlayerPersonalMessageId != messageId:
             answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
             return
 
@@ -96,7 +105,7 @@ class PlayerStep:
 
     def handleTakeCoinAction(self, chatId, userId, queryId, messageId):
         player = self.activePlayer
-        player.coinsCount += 1
+        player.addCoins(10)
 
         sendMessage(self.game.gameGroupchatId, player.user.combinedNameStrig() + ' взял 💲 монетку ')
         self.endStep()
@@ -110,12 +119,13 @@ class PlayerStep:
         buttons = []
         for player in self.game.players:
             if player == activePlayer:
-                continue
+                if len(self.game.players) >= 2: # для дебаг игры с самим собой
+                    continue
             if player.isAlive():
                 buttons.append([{'text': player.user.combinedNameStrig(),
-                                 'callbackData': 'simpleShotTarget|' + player.user.userId}])
+                                 'callbackData': '{}{}{}'.format(StepAction.simpleShot.name, ACTION_DELIMETER, player.user.userId)}])
 
-        sendMessage(activePlayer.user.userId, 'В кого стрелять будем?', buttons)
+        self.currentActivePlayerPersonalMessageId = sendMessage(activePlayer.user.userId, 'В кого стрелять будем?', buttons)
 
     def handleAmbassadorAction(self, chatId, userId, queryId, messageId):
         self.endStep()
@@ -130,9 +140,71 @@ class PlayerStep:
         self.endStep()
 
 
+    def handleStepComplexAction(self, action, chatId, userId, queryId, messageId):
+        actionType = action.split(ACTION_DELIMETER)[0]
+
+        if actionType == StepAction.simpleShot.name:
+            self.handleSimpleShotChooseTarget(action, chatId, userId, queryId, messageId)
+        elif actionType == StepAction.chooseCardToOpen.name:
+            self.handleChooseCardToOpen(action, chatId, userId, queryId, messageId)
+
+    def handleSimpleShotChooseTarget(self, action, chatId, userId, queryId, messageId):
+        if userId != self.activePlayer.user.userId:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+            return
+
+        if self.currentActivePlayerPersonalMessageId != messageId:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
+            return
+
+        answerCallbackQuery(queryId)
+
+        targetUserId = action.split(ACTION_DELIMETER)[1]
+        targetPlayer = self.game.getPlayerByUserId(targetUserId)
+        self.targetPlayer = targetPlayer
+
+        self.activePlayer.takeOutCoins(7)
+
+        commonText = self.activePlayer.user.combinedNameStrig() + '\n'
+        commonText += '🔫 выстерил в:' + '\n'
+        commonText += targetPlayer.user.combinedNameStrig() + '\n'
+
+        if targetPlayer.cardsCount() == 2:
+            sendMessage(self.game.gameGroupchatId, commonText)
+
+            buttons = []
+            for card in targetPlayer.cards:
+                buttons.append([{'text': card.name(), 'callbackData': '{}{}{}'.format(StepAction.chooseCardToOpen.name, ACTION_DELIMETER, card.name())}])
+            self.currentTargetPlayerPersonalMessageId = sendMessage(targetPlayer.user.userId, 'Вас подстрелили 🏹, какую карту откроем?', buttons)
+
+
+        elif targetPlayer.cardsCount() == 1:
+            card = targetPlayer.killOneCard()
+            commonText += 'и добил его 💀' + '\n'
+            commonText += '❌ ' + card.openedString()
+            sendMessage(self.game.gameGroupchatId, commonText)
+            self.endStep()
+
+
+    def handleChooseCardToOpen(self, action, chatId, userId, queryId, messageId):
+        if userId != self.targetPlayer.user.userId:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+            return
+
+        if self.currentTargetPlayerPersonalMessageId != messageId:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
+            return
+
+        answerCallbackQuery(queryId)
+
+        choosenCardName = action.split(ACTION_DELIMETER)[1]
+        self.targetPlayer.killCardByName(choosenCardName)
+
+        sendMessage(self.game.gameGroupchatId, '{}\nоткрыл ❌ {}'.format(self.targetPlayer.user.combinedNameStrig(), choosenCardName))
+
+        self.endStep()
+
 
     def endStep(self):
-        self.currentActivePersonalMessageId = 0
-
         self.game.endPlayerStep()
 

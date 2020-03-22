@@ -19,41 +19,90 @@ class Player:
     def addCard(self, card):
         self.cards.append(card)
 
+    def cardsCount(self):
+        return len(self.cards)
+
+    def killCardByName(self, cardName):
+        for card in self.cards:
+            if card.name() == cardName:
+                self.cards.remove(card)
+                self.lostedCards.append(card)
+                break
+
+    def killOneCard(self):
+        pos = randrange(len(self.cards))
+        card = self.cards.pop(pos)
+        self.lostedCards.append(card)
+        return card
+
     def isAlive(self):
         return len(self.cards) > 0
 
-    def playerStateString(self, additionalText=""):
+    def isDead(self):
+        return len(self.cards) == 0
+
+    def addCoins(self, count):
+        self.coinsCount += count
+
+    def takeOutCoins(self, count):
+        self.coinsCount -= count
+        if self.coinsCount < 0:
+            self.coinsCount = 0
+
+    def playerStateString(self, additionalText="", personalMessage = False):
         text = self.user.combinedNameStrig()
         if additionalText:
             text += ' ' + additionalText
         text += '\n'
 
         cardsCount = len(self.cards)
-        if self.isAlive() == False:
+        if self.isDead():
             text += '💀 Умер' + '\n'
         elif cardsCount == 1:
             text += '☯️ 1 жизнь' + '\n'
         elif cardsCount == 2:
             text += '☯️ 2 жизни' + '\n'
 
-        for lostedCard in self.lostedCards:
-            text += lostedCard.openedString() + '\n'
+        if (personalMessage):
+            text += self.playerCardsString()
 
-        if cardsCount == 0:
+        text += self.playerLostedCardsString()
+
+        if self.isDead():
             return text
 
-        text += self.pluralCoinsString()
+        text += self.playerCoinsString()
         return text
 
-    def pluralCoinsString(self):
+    def playerCardsString(self):
+        if self.isDead():
+            return ''
+
+        text = 'Ваши карты:\n'
+        for card in self.cards:
+            text += '✅ ' + card.name() + '\n'
+        return text
+
+    def playerLostedCardsString(self):
+        if len(self.lostedCards) == 0:
+            return ''
+
+        text = ''
+        for lostedCard in self.lostedCards:
+            text += '❌ ' + lostedCard.openedString() + '\n'
+        return text
+
+    def playerCoinsString(self):
+        text = ''
         if self.coinsCount == 0:
-            return '💰️ 0 монет'
+            text = '0 монет'
         elif self.coinsCount == 1:
-            return '💰️ 1 монета'
+            text = '1 монета'
         elif self.coinsCount >= 2 and self.coinsCount <= 4:
-            return '💰️ {} монеты'.format(self.coinsCount)
+            text = '{} монеты'.format(self.coinsCount)
         elif self.coinsCount >= 5:
-            return '💰️ {} монет'.format(self.coinsCount)
+            text = '{} монет'.format(self.coinsCount)
+        return '💰️ ' + text
 
 class User:
     def __init__(self, userId, nick, name):

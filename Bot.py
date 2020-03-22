@@ -127,8 +127,21 @@ class Game:
             player.addCard(self.deck.getCard())
             player.addCard(self.deck.getCard())
 
+            # player.lostedCards.append(self.deck.getCard())
+            # player.lostedCards.append(self.deck.getCard())
+            # player.lostedCards.append(self.deck.getCard())
+
+        for player in self.players:
+            sendMessage(player.user.userId, player.playerCardsString())
+
     def getCurrentPlayer(self):
         return self.players[self.currentPlayerIndex]
+
+    def getPlayerByUserId(self, userId):
+        for player in self.players:
+            if player.user.userId == userId:
+                return player
+        return None
 
     def processNextPlayerStep(self):
         player = self.getCurrentPlayer()
@@ -159,11 +172,17 @@ class Game:
         elif callbackData == 'startGame':
             self.handleStartGameButtonTap(chatId, userId, queryId, messageId)
 
-        elif callbackData in StepActions:
+        elif callbackData in StepPrimaryActions:
             if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
                 return
 
             self.currentGameStep.handleStepPrimaryAction(callbackData, chatId, userId, queryId, messageId)
+
+        elif ACTION_DELIMETER in callbackData:
+            if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
+                return
+
+            self.currentGameStep.handleStepComplexAction(callbackData, chatId, userId, queryId, messageId)
 
     def handleWantPlayButtonTap(self, chatId, userId, queryId, messageId):
         response = getInfo(userId)
@@ -209,12 +228,11 @@ class Game:
             answerCallbackQuery(queryId, 'Куды тычишь!? Нет игры..')
             return False
 
-        player = self.getCurrentPlayer()
-        if userId != player.user.userId:
-            answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
-            return False
-
         return True
+
+
+
+
 
 def poll(event_id):
 
