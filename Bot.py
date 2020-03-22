@@ -5,6 +5,7 @@ import json
 from enum import Enum
 from APIMethods import *
 from Entities import *
+from GameStep import *
 
 BOTNICK = 'CoupGameBot'
 BOTID = '762844961'
@@ -14,7 +15,7 @@ class GameState(Enum):
     Welcome = 2
     Game = 3
 
-class StateMachine:
+class GameStateMachine:
     def __init__(self):
         self.state = GameState.Idle
 
@@ -32,7 +33,7 @@ class StateMachine:
 
 class Game:
     def __init__(self):
-        self.stateMachine = StateMachine()
+        self.stateMachine = GameStateMachine()
 
         self.clearGame()
 
@@ -51,7 +52,7 @@ class Game:
 
         self.deck = Deck()
 
-        self.currentActivePersonalMessageId = 0
+        self.currentGameStep = None
 
     def handleEvent(self, event):
         logging.info(event)
@@ -130,47 +131,13 @@ class Game:
         return self.players[self.currentPlayerIndex]
 
     def processNextPlayerStep(self):
-        self.sendCurrentGameState()
-
         player = self.getCurrentPlayer()
-        sendMessage(self.gameGroupchatId, 'Ход {}'.format(player.user.combinedNameStrig()))
 
-        personalMessage = player.playerStateString('Ваш ход!')
-
-        buttons = []
-        if player.coinsCount >= 10:
-            buttons.append([{'text': 'Выстрелить за 7 монет', 'callbackData': 'simpleShot'}])
-        else:
-            buttons.append([{'text': 'Взять монетку', 'callbackData': 'takeCoin'}])
-            buttons.append([{'text': 'Попытаться взять две монетки', 'callbackData': 'tryTakeTwo'}])
-
-            if player.coinsCount >= 7:
-                buttons.append([{'text': 'Выстрелить за 7 монет', 'callbackData': 'simpleShot'}])
-
-            buttons.append([{'text': 'Прикинуться Ambassador', 'callbackData': 'shuffle'}])
-            buttons.append([{'text': 'Прикинуться Assassin', 'callbackData': 'snipeShot'}])
-            buttons.append([{'text': 'Прикинуться Captain', 'callbackData': 'steal'}])
-            buttons.append([{'text': 'Прикинуться Duke', 'callbackData': 'getThreeCoins'}])
-
-        print(buttons)
-
-        self.currentActivePersonalMessageId = sendMessage(player.user.userId, personalMessage, buttons)
-
-    def processSimpleShot(self):
-        currentPlayer = self.getCurrentPlayer()
-
-        buttons = []
-        for player in self.players:
-            if player == currentPlayer:
-                continue
-            if player.isAlive():
-                buttons.append([{'text': player.user.combinedNameStrig(), 'callbackData': 'simpleShotTarget|' + player.user.userId}])
-
-        sendMessage(currentPlayer.user.userId, 'В кого стрелять будем?', buttons)
-
+        self.currentGameStep = PlayerStep(self, player)
+        self.currentGameStep.startStep()
 
     def endPlayerStep(self):
-        self.currentActivePersonalMessageId = 0
+        self.currentGameStep = None
 
         self.currentPlayerIndex += 1
         if self.currentPlayerIndex >= len(self.players):
@@ -192,20 +159,11 @@ class Game:
         elif callbackData == 'startGame':
             self.handleStartGameButtonTap(chatId, userId, queryId, messageId)
 
-        elif callbackData == 'takeCoin':
-            self.handleTakeCoinButtonTap(chatId, userId, queryId, messageId)
-        elif callbackData == 'tryTakeTwo':
-            self.handleTryTakeTwoCoinsButtonTap(chatId, userId, queryId, messageId)
-        elif callbackData == 'simpleShot':
-            self.handleSimpleShotButtonTap(chatId, userId, queryId, messageId)
-        elif callbackData == 'shuffle':
-            self.handleAmbassadorButtonTap(chatId, userId, queryId, messageId)
-        elif callbackData == 'snipeShot':
-            self.handleAssassinButtonTap(chatId, userId, queryId, messageId)
-        elif callbackData == 'steal':
-            self.handleCaptainButtonTap(chatId, userId, queryId, messageId)
-        elif callbackData == 'getThreeCoins':
-            self.handleDukeButtonTap(chatId, userId, queryId, messageId)
+        elif callbackData in StepActions:
+            if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
+                return
+
+            self.currentGameStep.handleStepPrimaryAction(callbackData, chatId, userId, queryId, messageId)
 
     def handleWantPlayButtonTap(self, chatId, userId, queryId, messageId):
         response = getInfo(userId)
@@ -246,53 +204,6 @@ class Game:
 
         self.startGame()
 
-
-
-    def handleTakeCoinButtonTap(self, chatId, userId, queryId, messageId):
-        if self.checkValidPersonalButtonTap(userId, messageId, queryId) == False:
-            return
-        answerCallbackQuery(queryId)
-
-        player = self.getCurrentPlayer()
-        player.coinsCount += 1
-
-        sendMessage(self.gameGroupchatId, player.user.combinedNameStrig() + ' взял 💲 монетку ')
-        self.endPlayerStep()
-
-
-    def handleTryTakeTwoCoinsButtonTap(self, chatId, userId, queryId, messageId):
-        if self.checkValidPersonalButtonTap(userId, messageId, queryId) == False:
-            return
-        answerCallbackQuery(queryId)
-
-    def handleSimpleShotButtonTap(self, chatId, userId, queryId, messageId):
-        if self.checkValidPersonalButtonTap(userId, messageId, queryId) == False:
-            return
-        answerCallbackQuery(queryId)
-
-        self.processSimpleShot()
-
-
-    def handleAmbassadorButtonTap(self, chatId, userId, queryId, messageId):
-        if self.checkValidPersonalButtonTap(userId, messageId, queryId) == False:
-            return
-        answerCallbackQuery(queryId)
-
-    def handleAssassinButtonTap(self, chatId, userId, queryId, messageId):
-        if self.checkValidPersonalButtonTap(userId, messageId, queryId) == False:
-            return
-        answerCallbackQuery(queryId)
-
-    def handleCaptainButtonTap(self, chatId, userId, queryId, messageId):
-        if self.checkValidPersonalButtonTap(userId, messageId, queryId) == False:
-            return
-        answerCallbackQuery(queryId)
-
-    def handleDukeButtonTap(self, chatId, userId, queryId, messageId):
-        if self.checkValidPersonalButtonTap(userId, messageId, queryId) == False:
-            return
-        answerCallbackQuery(queryId)
-
     def checkValidPersonalButtonTap(self, userId, messageId, queryId):
         if self.stateMachine.state != GameState.Game:
             answerCallbackQuery(queryId, 'Куды тычишь!? Нет игры..')
@@ -303,14 +214,7 @@ class Game:
             answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
             return False
 
-        if self.currentActivePersonalMessageId != messageId:
-            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
-            return False
-
         return True
-
-
-
 
 def poll(event_id):
 
