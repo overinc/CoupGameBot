@@ -2,14 +2,13 @@ import requests
 import logging
 import time
 import json
-
-TOKEN = '001.2565772293.0331632623:762844961'
+from Credentials import *
 
 base_url = "https://rapi.icq.net/botapi"
 
 def sendMessage(chatId, message, buttons=[]):
-    queryParams = {'token': TOKEN}
 
+    queryParams = {'token': TOKEN}
     queryParams.update({'chatId': chatId})
 
     queryParams.update({'text': message})

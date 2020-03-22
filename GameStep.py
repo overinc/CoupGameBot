@@ -1,5 +1,5 @@
 from enum import Enum
-from Bot import *
+from bot import *
 from APIMethods import *
 
 class StepAction(Enum):
@@ -175,7 +175,7 @@ class PlayerStep:
             buttons = []
             for card in targetPlayer.cards:
                 buttons.append([{'text': card.name(), 'callbackData': '{}{}{}'.format(StepAction.chooseCardToOpen.name, ACTION_DELIMETER, card.name())}])
-            self.currentTargetPlayerPersonalMessageId = sendMessage(targetPlayer.user.userId, 'Вас подстрелили 🏹, какую карту откроем?', buttons)
+            self.currentTargetPlayerPersonalMessageId = sendMessage(targetPlayer.user.userId, 'Вас подстрелили 🏹\nКакую карту откроем?', buttons)
 
 
         elif targetPlayer.cardsCount() == 1:
