@@ -5,7 +5,7 @@ class Player:
     def __init__(self, user):
         self.user = user
 
-        self.coinsCount = 7
+        self.coinsCount = 2
 
         self.cards = []
         self.lostedCards = []
@@ -22,6 +22,12 @@ class Player:
     def cardsCount(self):
         return len(self.cards)
 
+    def hasCardByName(self, cardName):
+        for card in self.cards:
+            if card.name() == cardName:
+                return True
+        return False
+
     def killCardByName(self, cardName):
         for card in self.cards:
             if card.name() == cardName:
@@ -34,6 +40,13 @@ class Player:
         card = self.cards.pop(pos)
         self.lostedCards.append(card)
         return card
+
+    def returnCardByName(self, cardName):
+        for card in self.cards:
+            if card.name() == cardName:
+                self.cards.remove(card)
+                return card
+
 
     def isAlive(self):
         return len(self.cards) > 0
@@ -128,6 +141,9 @@ class Deck:
         pos = randrange(len(self.cards))
         card = self.cards.pop(pos)
         return card
+
+    def putCard(self, card):
+        self.cards.append(card)
 
 
 class Card(Enum):

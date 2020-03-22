@@ -38,7 +38,7 @@ class Game:
         self.membersWelcomeMessageText = 'Добро пожаловать в Coup!\nКто будет играть - отмечайтесь'
         self.membersWelcomeMessageButtons = [[{'text': 'Я готов!', 'callbackData': 'wantPlay'}]]
 
-        self.minPlayersCount = 1
+        self.minPlayersCount = 2
         self.maxPlayersCount = 6
 
     def clearGame(self):
@@ -46,7 +46,7 @@ class Game:
         self.membersWelcomeMessageId = ""
 
         self.players = []
-        self.currentPlayerIndex = 0
+        self.currentPlayerIndex = -1
 
         self.deck = Deck()
 
@@ -83,19 +83,20 @@ class Game:
         text = event['payload']['text'].lower()
 
 
-        # if BOT_NICK.lower() in text or BOT_ID in text:
-        #     if self.stateMachine.applyState(GameState.Welcome) == False:
-        #         return
-        #     self.clearGame()
-        #     self.gameGroupchatId = chatId
-        #     self.sendWelcomeMessage()
+        if BOT_NICK.lower() in text or BOT_ID in text:
+            if self.stateMachine.applyState(GameState.Welcome) == False:
+                return
+            
+            self.clearGame()
+            self.gameGroupchatId = chatId
+            self.sendWelcomeMessage()
 
-        if self.stateMachine.applyState(GameState.Welcome) == False:
-            return
-
-        self.clearGame()
-        self.gameGroupchatId = chatId
-        self.sendWelcomeMessage()
+        # if self.stateMachine.applyState(GameState.Welcome) == False:
+        #     return
+        #
+        # self.clearGame()
+        # self.gameGroupchatId = chatId
+        # self.sendWelcomeMessage()
 
     def sendWelcomeMessage(self):
         self.membersWelcomeMessageId = sendMessage(self.gameGroupchatId, self.membersWelcomeMessageText, self.membersWelcomeMessageButtons)
@@ -131,17 +132,22 @@ class Game:
         for player in self.players:
             sendMessage(player.user.userId, player.playerCardsString())
 
-    def getCurrentPlayer(self):
-        return self.players[self.currentPlayerIndex]
-
-    def getPlayerByUserId(self, userId):
+    def findPlayerByUserId(self, userId):
         for player in self.players:
             if player.user.userId == userId:
                 return player
         return None
 
+    def returnPlayerCardAndGetNew(self, player, cardName):
+        card = player.returnCardByName(cardName)
+        self.deck.putCard(card)
+        player.addCard(self.deck.getCard())
+
+
+
+
     def processNextPlayerStep(self):
-        player = self.getCurrentPlayer()
+        player = self.findNextPlayer()
 
         self.currentGameStep = PlayerStep(self, player)
         self.currentGameStep.startStep()
@@ -149,12 +155,20 @@ class Game:
     def endPlayerStep(self):
         self.currentGameStep = None
 
+        time.sleep(2)
+
+        self.processNextPlayerStep()
+
+    def findNextPlayer(self):
         self.currentPlayerIndex += 1
         if self.currentPlayerIndex >= len(self.players):
             self.currentPlayerIndex = 0
 
-        self.processNextPlayerStep()
+        player = self.players[self.currentPlayerIndex]
+        if player.isDead():
+           return self.findNextPlayer()
 
+        return player
 
 
     def handleButtonTap(self, event):
