@@ -38,7 +38,7 @@ class Game:
         self.membersWelcomeMessageText = 'Добро пожаловать в Coup!\nКто будет играть - отмечайтесь'
         self.membersWelcomeMessageButtons = [[{'text': 'Я готов!', 'callbackData': 'wantPlay'}]]
 
-        self.minPlayersCount = 2
+        self.minPlayersCount = 1
         self.maxPlayersCount = 6
 
     def clearGame(self):
@@ -51,6 +51,9 @@ class Game:
         self.deck = Deck()
 
         self.currentGameStep = None
+
+        self.botDeeplink = ''
+        self.groupchatDeeplink = ''
 
     def handleEvent(self, event):
         try:
@@ -82,21 +85,23 @@ class Game:
         messageId = event['payload']['msgId']
         text = event['payload']['text'].lower()
 
+        # if not '@' in chatId:
+        #     return
 
         if BOT_NICK.lower() in text or BOT_ID in text:
             if self.stateMachine.applyState(GameState.Welcome) == False:
                 return
-            
+
             self.clearGame()
             self.gameGroupchatId = chatId
             self.sendWelcomeMessage()
+        else:
+            if self.stateMachine.applyState(GameState.Welcome) == False:
+                return
 
-        # if self.stateMachine.applyState(GameState.Welcome) == False:
-        #     return
-        #
-        # self.clearGame()
-        # self.gameGroupchatId = chatId
-        # self.sendWelcomeMessage()
+            self.clearGame()
+            self.gameGroupchatId = chatId
+            self.sendWelcomeMessage()
 
     def sendWelcomeMessage(self):
         self.membersWelcomeMessageId = sendMessage(self.gameGroupchatId, self.membersWelcomeMessageText, self.membersWelcomeMessageButtons)
@@ -121,6 +126,14 @@ class Game:
         self.processNextPlayerStep()
 
     def generateInitialState(self):
+        # response = getInfo(self.gameGroupchatId)
+        # print(response)
+        # inviteLink = response['inviteLink']
+
+        self.botDeeplink = 'https://icq.im/' + BOT_NICK
+        self.groupchatDeeplink = 'https://icq.im/' + self.gameGroupchatId
+        self.groupchatDeeplink = '' # Отключаем бесконечное проваливание по чатам
+
         for player in self.players:
             player.addCard(self.deck.getCard())
             player.addCard(self.deck.getCard())
@@ -173,7 +186,7 @@ class Game:
 
     def handleButtonTap(self, event):
         chatId = event['payload']['message']['chat']['chatId']
-        userId = event['payload']['from']
+        userId = event['payload']['from']['userId']
         queryId = event['payload']['queryId']
         messageId = event['payload']['message']['msgId']
         callbackData = event['payload']['callbackData']

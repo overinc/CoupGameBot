@@ -43,13 +43,15 @@ def getChatMembers(chatId):
     response = requests.get(f"{base_url}/chats/getMembers", queryParams)
     print(response.text)
 
-def answerCallbackQuery(queryId, text=""):
+def answerCallbackQuery(queryId, text='', url=''):
     queryParams = {'token': TOKEN}
 
     queryParams.update({'queryId': queryId})
 
     if text:
         queryParams.update({'text': text})
+    if url:
+        queryParams.update({'url': url})
 
     response = requests.get(f"{base_url}/messages/answerCallbackQuery", queryParams)
     print(response.text)
