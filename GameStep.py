@@ -4,8 +4,8 @@ from bot import *
 from APIMethods import *
 from Constants import *
 from Entities import *
-from TimingMessageContext import *
-from Roles.Ambassador import *
+from DoubtContext import *
+from Actions.Ambassador import *
 
 StepPrimaryActions = [StepAction.takeCoin.name,
                       StepAction.tryTakeTwo.name,
@@ -18,13 +18,9 @@ StepPrimaryActions = [StepAction.takeCoin.name,
 class PlayerStepState(Enum):
     Unknown = 1
     ChooseAction = 2
-    DeclarateAction = 3
-    Doubt = 4
-    InterruptAction = 4
-    LoseDoubt = 5
-    MakeAction = 6
-    Protect = 7
-    DoubtProtect = 8
+    MakeAction = 7
+    # Protect = 8
+    # DoubtProtect = 9
 
 
 class PlayerStateMachine:
@@ -32,10 +28,7 @@ class PlayerStateMachine:
         self.state = PlayerStepState.Unknown
 
         self.transitions = {PlayerStepState.Unknown : [PlayerStepState.ChooseAction],
-                            PlayerStepState.ChooseAction: [PlayerStepState.DeclarateAction, PlayerStepState.MakeAction],
-                            PlayerStepState.DeclarateAction: [PlayerStepState.Doubt, PlayerStepState.MakeAction],
-                            PlayerStepState.Doubt: [PlayerStepState.LoseDoubt, PlayerStepState.InterruptAction],
-                            PlayerStepState.LoseDoubt: [PlayerStepState.MakeAction],
+                            PlayerStepState.ChooseAction: [PlayerStepState.MakeAction],
                             }
 
     def applyState(self, state):
@@ -51,15 +44,14 @@ class PlayerStep:
 
         self.activePlayer = activePlayer
         self.targetPlayer = None
-        self.doubtedPlayer = None
 
         self.stateMachine = PlayerStateMachine()
 
+        self.activePlayerActionType = None
         self.activePlayerAction = None
 
         self.currentActivePlayerPersonalMessageId = 0
         self.currentTargetPlayerPersonalMessageId = 0
-        self.doubtActivePlayerCommonMessageId = 0
         self.currentDoubtedPlayerPersonalMessageId = 0
 
 
@@ -157,25 +149,10 @@ class PlayerStep:
         self.currentActivePlayerPersonalMessageId = sendMessage(activePlayer.user.userId, 'В кого стрелять будем?', buttons)
 
     def handleAmbassadorAction(self, chatId, userId, queryId, messageId):
-        self.stateMachine.applyState(PlayerStepState.DeclarateAction)
+        self.activePlayerActionType = Card.Ambassador
 
-        self.activePlayerAction = Card.Ambassador
-
-        activePlayer = self.activePlayer
-        baseText = '{} заявляет, что он Ambassador и хочет порыться📚 в колоде\nКто хочет усомниться?\n\n'.format(
-            activePlayer.user.combinedNameStrig())
-        baseText += 'У вас есть на это {} секунд'.format(DOUBT_TIMER)
-        buttons = [[{'text': 'Я усомняюсь',
-                     'callbackData': '{}{}{}'.format(StepAction.doubtActivePlayer.name, ACTION_DELIMETER, 'Duke')}]]
-
-        text = baseText + '\n' + TimingMessageContext.timingStringFor(DOUBT_TIMER, DOUBT_TIMER)
-
-        self.doubtActivePlayerCommonMessageId = sendMessage(self.game.gameGroupchatId, text, buttons)
-
-        self.timingMessageContext = TimingMessageContext(DOUBT_TIMER, self.game.gameGroupchatId,
-                                                         self.doubtActivePlayerCommonMessageId, baseText, buttons,
-                                                         self.continueAction)
-        self.timingMessageContext.startAnimate()
+        self.doubtContext = DoubtContext(self.activePlayerActionType, self.game, self.activePlayer, self.continueAction, self.endStep)
+        self.doubtContext.start()
 
     def handleAssassinAction(self, chatId, userId, queryId, messageId):
         self.endStep()
@@ -184,23 +161,25 @@ class PlayerStep:
         self.endStep()
 
     def handleDukeAction(self, chatId, userId, queryId, messageId):
-        self.stateMachine.applyState(PlayerStepState.DeclarateAction)
+        self.activePlayerActionType = Card.Duke
 
-        self.activePlayerAction = Card.Duke
+        self.doubtContext = DoubtContext(self.activePlayerActionType, self.game, self.activePlayer, self.continueAction, self.endStep)
+        self.doubtContext.start()
 
-        activePlayer = self.activePlayer
-        baseText = '{} заявляет, что он Duke и хочет взять 3 монеты🥉\nКто хочет усомниться?\n\n'.format(activePlayer.user.combinedNameStrig())
-        baseText += 'У вас есть на это {} секунд'.format(DOUBT_TIMER)
-        buttons = [[{'text': 'Я усомняюсь', 'callbackData': '{}{}{}'.format(StepAction.doubtActivePlayer.name, ACTION_DELIMETER, 'Duke')}]]
 
-        text = baseText + '\n' + TimingMessageContext.timingStringFor(DOUBT_TIMER, DOUBT_TIMER)
 
-        self.doubtActivePlayerCommonMessageId = sendMessage(self.game.gameGroupchatId, text, buttons)
 
-        self.timingMessageContext = TimingMessageContext(DOUBT_TIMER, self.game.gameGroupchatId,
-                                                         self.doubtActivePlayerCommonMessageId, baseText, buttons, self.continueAction)
-        self.timingMessageContext.startAnimate()
 
+    def handleSomeoneDoubtActivePlayer(self, action, chatId, userId, queryId, messageId):
+        # if userId == self.activePlayer.user.userId:
+        #     answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+        #     return
+
+        if not self.doubtContext:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
+            return
+
+        self.doubtContext.handleSomeoneDoubtActivePlayer(action, chatId, userId, queryId, messageId)
 
 
 
@@ -213,8 +192,6 @@ class PlayerStep:
             self.handleSimpleShotChooseTarget(action, chatId, userId, queryId, messageId)
         elif actionType == StepAction.chooseCardToOpenByKill.name:
             self.handleChooseCardToOpenByKill(action, chatId, userId, queryId, messageId)
-        elif actionType == StepAction.doubtActivePlayer.name:
-            self.handleSomeoneDoubtActivePlayer(action, chatId, userId, queryId, messageId)
         elif actionType == StepAction.chooseCardToOpenByDoubt.name:
             self.handleChooseCardToOpenByDoubt(action, chatId, userId, queryId, messageId)
         elif actionType == StepAction.chooseCardForAmbassadoring.name:
@@ -247,7 +224,7 @@ class PlayerStep:
             sendMessage(self.game.gameGroupchatId, commonText)
             buttons = []
             for card in targetPlayer.cards:
-                buttons.append([{'text': card.name(), 'callbackData': '{}{}{}'.format(StepAction.chooseCardToOpenByKill.name, ACTION_DELIMETER, card.name())}])
+                buttons.append([{'text': card.name, 'callbackData': '{}{}{}'.format(StepAction.chooseCardToOpenByKill.name, ACTION_DELIMETER, card.name)}])
             self.currentTargetPlayerPersonalMessageId = sendMessage(targetPlayer.user.userId, 'Вас подстрелили 🏹\nКакую карту откроем?', buttons)
 
         elif targetPlayer.cardsCount() == 1:
@@ -278,133 +255,12 @@ class PlayerStep:
 
         self.endStep()
 
-    def handleSomeoneDoubtActivePlayer(self, action, chatId, userId, queryId, messageId):
-        # if userId == self.activePlayer.user.userId:
-        #     answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
-        #     return
-
-        if self.doubtActivePlayerCommonMessageId != messageId:
-            answerCallbackQuery(queryId, 'Поздно..')
-            return
-
-        if not self.stateMachine.applyState(PlayerStepState.Doubt):
-            answerCallbackQuery(queryId, 'Поздно..')
-            return
-
-        answerCallbackQuery(queryId)
-
-        self.timingMessageContext.stopAnimate()
-
-        self.doubtActivePlayerCommonMessageId = 0
-
-        doubtCardName = action.split(ACTION_DELIMETER)[1]
-        doubtedPlayer = self.game.findPlayerByUserId(userId)
-        self.doubtedPlayer = doubtedPlayer
-
-        commonText = doubtedPlayer.user.combinedNameStrig() + '\n'
-        commonText += 'усомнился '
-        # commonText += 'усомнился в\n'
-        # commonText += self.activePlayer.user.combinedNameStrig() + '\n'
-
-        if self.activePlayer.hasCardByName(doubtCardName):
-
-            commonText += 'и оказался не прав!'
-            commonText += '\n\n'
-
-            self.game.returnPlayerCardAndGetNew(self.activePlayer, doubtCardName)
-
-            sendMessage(self.activePlayer.user.userId, self.activePlayer.playerCardsString())
-
-            if doubtedPlayer.cardsCount() == 2:
-                self.stateMachine.applyState(PlayerStepState.LoseDoubt)
-
-
-                commonText += '{} вскрывает одну карту'.format(doubtedPlayer.user.combinedNameStrig()) + '\n\n'
-                commonText += 'A {} утратил {} и взял новую карту из колоды'.format(self.activePlayer.user.combinedNameStrig(), doubtCardName)
-                sendMessage(self.game.gameGroupchatId, commonText)
-
-                buttons = []
-                for card in doubtedPlayer.cards:
-                    buttons.append([{'text': card.name(),
-                                     'callbackData': '{}{}{}'.format(StepAction.chooseCardToOpenByDoubt.name, ACTION_DELIMETER,
-                                                                     card.name())}])
-                self.currentDoubtedPlayerPersonalMessageId = sendMessage(doubtedPlayer.user.userId,
-                                                                        'Вы начали катить 🛢бочку и оказались не правы\nКакую карту откроем?',
-                                                                        buttons)
-
-            elif doubtedPlayer.cardsCount() == 1:
-                card = doubtedPlayer.killOneCard()
-                commonText += '{} самоубился 💀'.format(doubtedPlayer.user.combinedNameStrig()) + '\n'
-                commonText += '❌ ' + card.openedString() + '\n\n'
-                commonText += 'A {} утратил {} и взял новую карту из колоды'.format(
-                    self.activePlayer.user.combinedNameStrig(), doubtCardName)
-                sendMessage(self.game.gameGroupchatId, commonText)
-
-                self.continueAction()
-
-
-        else:
-            self.stateMachine.applyState(PlayerStepState.InterruptAction)
-
-            commonText += 'и оказался прав!'
-            commonText += '\n\n'
-
-            if self.activePlayer.cardsCount() == 2:
-                commonText += '{} вскрывает одну карту'.format(self.activePlayer.user.combinedNameStrig()) + '\n'
-                sendMessage(self.game.gameGroupchatId, commonText)
-
-                buttons = []
-                for card in self.activePlayer.cards:
-                    buttons.append([{'text': card.name(),
-                                     'callbackData': '{}{}{}'.format(StepAction.chooseCardToOpenByDoubt.name, ACTION_DELIMETER,
-                                                                     card.name())}])
-                self.currentActivePlayerPersonalMessageId = sendMessage(self.activePlayer.user.userId,
-                                                                        'Вас уличили в обмане 🤥 \nКакую карту откроем?',
-                                                                        buttons)
-
-            elif self.activePlayer.cardsCount() == 1:
-                card = self.activePlayer.killOneCard()
-                commonText += '{} умер 💀'.format(self.activePlayer.user.combinedNameStrig()) + '\n'
-                commonText += '❌ ' + card.openedString()
-                sendMessage(self.game.gameGroupchatId, commonText)
-                self.endStep()
-
     def handleChooseCardToOpenByDoubt(self, action, chatId, userId, queryId, messageId):
-        currentPlayer = None
-        currentMessageId = 0
-
-        if self.stateMachine.state == PlayerStepState.LoseDoubt:
-            currentPlayer = self.doubtedPlayer
-            currentMessageId = self.currentDoubtedPlayerPersonalMessageId
-        elif self.stateMachine.state == PlayerStepState.InterruptAction:
-            currentPlayer = self.activePlayer
-            currentMessageId = self.currentActivePlayerPersonalMessageId
-        else:
+        if not self.doubtContext:
             answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
             return
 
-        if userId != currentPlayer.user.userId:
-            answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
-            return
-        if currentMessageId != messageId:
-            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
-            return
-
-        answerCallbackQuery(queryId)
-
-        self.currentDoubtedPlayerPersonalMessageId = 0
-        self.currentActivePlayerPersonalMessageId = 0
-
-        choosenCardName = action.split(ACTION_DELIMETER)[1]
-        currentPlayer.killCardByName(choosenCardName)
-
-        sendMessage(self.game.gameGroupchatId,
-                    '{}\nоткрыл ❌ {}'.format(currentPlayer.user.combinedNameStrig(), choosenCardName))
-
-        if self.stateMachine.state == PlayerStepState.LoseDoubt:
-            self.continueAction()
-        elif self.stateMachine.state == PlayerStepState.InterruptAction:
-            self.endStep()
+        self.doubtContext.handleChooseCardToOpenByDoubt(action, chatId, userId, queryId, messageId)
 
     def handleChooseCardForAmbassadoring(self, action, chatId, userId, queryId, messageId):
         if userId != self.activePlayer.user.userId:
@@ -417,28 +273,27 @@ class PlayerStep:
 
         answerCallbackQuery(queryId)
 
-        self.action.handleChooseCard(action)
+        self.activePlayerAction.handleChooseCard(action)
 
 
 
 
     def continueAction(self):
+        self.doubtContext = None
+
         self.stateMachine.applyState(PlayerStepState.MakeAction)
 
-        self.doubtActivePlayerCommonMessageId = 0
-
-        if self.activePlayerAction == Card.Ambassador:
+        if self.activePlayerActionType == Card.Ambassador:
             self.continueAmbassadorAction()
-        elif self.activePlayerAction == Card.Duke:
+        elif self.activePlayerActionType == Card.Duke:
             self.continueDukeAction()
 
     def continueAmbassadorAction(self):
-        self.action = AmbassadorAction(self.activePlayer, self.game.deck, self.finalizeAmbassadorAction)
-        self.currentActivePlayerPersonalMessageId = self.action.start()
+        self.activePlayerAction = AmbassadorAction(self.activePlayer, self.game.deck, self.finalizeAmbassadorAction)
+        self.currentActivePlayerPersonalMessageId = self.activePlayerAction.start()
 
     def finalizeAmbassadorAction(self):
         activePlayer = self.activePlayer
-
         sendMessage(activePlayer.user.userId, activePlayer.playerCardsString())
 
         sendMessage(self.game.gameGroupchatId,

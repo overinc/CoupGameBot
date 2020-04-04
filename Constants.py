@@ -18,5 +18,5 @@ class StepAction(Enum):
 
     chooseCardForAmbassadoring = 11
 
-DOUBT_TIMER = 1
+DOUBT_TIMER = 12
 

@@ -199,13 +199,16 @@ class Game:
         elif callbackData in StepPrimaryActions:
             if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
                 return
-
             self.currentGameStep.handleStepPrimaryAction(callbackData, chatId, userId, queryId, messageId)
+
+        elif callbackData == StepAction.doubtActivePlayer.name:
+            if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
+                return
+            self.currentGameStep.handleSomeoneDoubtActivePlayer(callbackData, chatId, userId, queryId, messageId)
 
         elif ACTION_DELIMETER in callbackData:
             if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
                 return
-
             self.currentGameStep.handleStepComplexAction(callbackData, chatId, userId, queryId, messageId)
 
     def handleWantPlayButtonTap(self, chatId, userId, queryId, messageId):

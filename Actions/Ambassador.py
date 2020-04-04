@@ -40,14 +40,14 @@ class AmbassadorAction:
 
         if actionType == KEEP_CARD_ACTION:
             for card in self.playersCards:
-                if card.name() == cardName:
+                if card.name == cardName:
                     self.playersCards.remove(card)
                     self.player.addCard(card)
                     break
 
         if actionType == GET_CARD_ACTION:
             for card in self.newCards:
-                if card.name() == cardName:
+                if card.name == cardName:
                     self.newCards.remove(card)
                     self.player.addCard(card)
                     break
@@ -66,20 +66,20 @@ class AmbassadorAction:
     def generateButtons(self):
         buttons = []
         for card in self.playersCards:
-            buttons.append([{'text': 'Оставить {}'.format(card.name()),
+            buttons.append([{'text': 'Оставить {}'.format(card.name),
                              'callbackData': '{}{}{}{}{}'.format(StepAction.chooseCardForAmbassadoring.name,
                                                                  ACTION_DELIMETER,
                                                                  KEEP_CARD_ACTION,
                                                                  ACTION_DELIMETER,
-                                                                 card.name())}])
+                                                                 card.name)}])
 
         for card in self.newCards:
-            buttons.append([{'text': 'Взять {}'.format(card.name()),
+            buttons.append([{'text': 'Взять {}'.format(card.name),
                              'callbackData': '{}{}{}{}{}'.format(StepAction.chooseCardForAmbassadoring.name,
                                                                  ACTION_DELIMETER,
                                                                  GET_CARD_ACTION,
                                                                  ACTION_DELIMETER,
-                                                                 card.name())}])
+                                                                 card.name)}])
 
         return buttons
 

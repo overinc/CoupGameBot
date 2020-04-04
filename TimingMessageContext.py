@@ -3,14 +3,14 @@ import threading
 from APIMethods import *
 
 class TimingMessageContext:
-    def __init__(self, seconds, chatId, messageId, text, buttons, callback):
+    def __init__(self, seconds, chatId, messageId, text, buttons, completion):
         self.totalSeconds = seconds
         self.currentSeconds = seconds
         self.chatId = chatId
         self.messageId = messageId
         self.text = text
         self.buttons = buttons
-        self.callback = callback
+        self.completion = completion
 
         self.stopped = False
 
@@ -29,7 +29,7 @@ class TimingMessageContext:
         editMessage(self.chatId, self.messageId, text, self.buttons)
 
         if self.currentSeconds == 0:
-            self.callback()
+            self.completion()
             return
 
         t = threading.Timer(1, self.tickTimer)

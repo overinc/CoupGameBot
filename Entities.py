@@ -24,13 +24,13 @@ class Player:
 
     def hasCardByName(self, cardName):
         for card in self.cards:
-            if card.name() == cardName:
+            if card.name == cardName:
                 return True
         return False
 
     def killCardByName(self, cardName):
         for card in self.cards:
-            if card.name() == cardName:
+            if card.name == cardName:
                 self.cards.remove(card)
                 self.lostedCards.append(card)
                 break
@@ -43,7 +43,7 @@ class Player:
 
     def returnCardByName(self, cardName):
         for card in self.cards:
-            if card.name() == cardName:
+            if card.name == cardName:
                 self.cards.remove(card)
                 return card
 
@@ -93,7 +93,7 @@ class Player:
 
         text = 'Ваши карты:\n'
         for card in self.cards:
-            text += '✅ ' + card.name() + '\n'
+            text += '✅ ' + card.name + '\n'
         return text
 
     def playerLostedCardsString(self):
@@ -153,17 +153,17 @@ class Card(Enum):
     Duke = 4
     Contessa = 5
 
-    def name(self):
-        if self == Card.Ambassador:
-            return 'Ambassador'
-        if self == Card.Assassin:
-            return 'Assassin'
-        if self == Card.Captain:
-            return 'Captain'
-        if self == Card.Duke:
-            return 'Duke'
-        if self == Card.Contessa:
-            return 'Contessa'
+    # def name(self):
+    #     if self == Card.Ambassador:
+    #         return 'Ambassador'
+    #     if self == Card.Assassin:
+    #         return 'Assassin'
+    #     if self == Card.Captain:
+    #         return 'Captain'
+    #     if self == Card.Duke:
+    #         return 'Duke'
+    #     if self == Card.Contessa:
+    #         return 'Contessa'
 
     def openedString(self):
         if self == Card.Ambassador:
