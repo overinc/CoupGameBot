@@ -6,6 +6,7 @@ from Constants import *
 from Entities import *
 from DoubtContext import *
 from Actions.Ambassador import *
+from Actions.ForeignAid import *
 
 StepPrimaryActions = [StepAction.takeCoin.name,
                       StepAction.tryTakeTwo.name,
@@ -50,6 +51,8 @@ class PlayerStep:
         self.activePlayerActionType = None
         self.activePlayerAction = None
 
+        self.foreignAidAction = None
+
         self.currentActivePlayerPersonalMessageId = 0
         self.currentTargetPlayerPersonalMessageId = 0
         self.currentDoubtedPlayerPersonalMessageId = 0
@@ -60,7 +63,7 @@ class PlayerStep:
         self.game.sendCurrentGameState()
 
         buttons = [[{'text': 'Ходить', 'url': self.game.botDeeplink}]]
-        sendMessage(self.game.gameGroupchatId, 'Ход {}'.format(self.activePlayer.user.combinedNameStrig()), buttons)
+        sendMessage(self.game.gameGroupchatId, 'Ход игрока {}'.format(self.activePlayer.user.combinedNameStrig()), buttons)
 
         personalMessage = self.activePlayer.playerStateString('\nВаш ход!', True)
 
@@ -128,11 +131,12 @@ class PlayerStep:
         activePlayer = self.activePlayer
         activePlayer.addCoins(1)
 
-        sendMessage(self.game.gameGroupchatId, activePlayer.user.combinedNameStrig() + ' взял 🥇 монетку ')
+        sendMessage(self.game.gameGroupchatId, activePlayer.user.combinedNameStrig() + ' взял 1 🥇монетку')
         self.endStep()
 
     def handleTryTakeTwoCoinsAction(self, chatId, userId, queryId, messageId):
-        self.endStep()
+        self.foreignAidAction = ForeignAidAction(self.activePlayer, self.game, self.endStep)
+        self.foreignAidAction.start()
 
     def handleSimpleShotAction(self, chatId, userId, queryId, messageId):
         activePlayer = self.activePlayer
@@ -151,7 +155,7 @@ class PlayerStep:
     def handleAmbassadorAction(self, chatId, userId, queryId, messageId):
         self.activePlayerActionType = Card.Ambassador
 
-        self.doubtContext = DoubtContext(self.activePlayerActionType, self.game, self.activePlayer, self.continueAction, self.endStep)
+        self.doubtContext = DoubtContext(self.activePlayerActionType, self.game, self.activePlayer, StepAction.doubtActivePlayer.name, self.continueAction, self.endStep)
         self.doubtContext.start()
 
     def handleAssassinAction(self, chatId, userId, queryId, messageId):
@@ -163,7 +167,7 @@ class PlayerStep:
     def handleDukeAction(self, chatId, userId, queryId, messageId):
         self.activePlayerActionType = Card.Duke
 
-        self.doubtContext = DoubtContext(self.activePlayerActionType, self.game, self.activePlayer, self.continueAction, self.endStep)
+        self.doubtContext = DoubtContext(self.activePlayerActionType, self.game, self.activePlayer, StepAction.doubtActivePlayer.name, self.continueAction, self.endStep)
         self.doubtContext.start()
 
 
@@ -181,6 +185,23 @@ class PlayerStep:
 
         self.doubtContext.handleSomeoneDoubtActivePlayer(action, chatId, userId, queryId, messageId)
 
+    def handleSomeoneTryBlockForeignAid(self, action, chatId, userId, queryId, messageId):
+        # if userId == self.activePlayer.user.userId:
+        #     answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+        #     return
+
+        if not self.foreignAidAction:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
+            return
+
+        self.foreignAidAction.handleSomeoneTryBlockForeignAid(action, chatId, userId, queryId, messageId)
+
+    def handleSomeoneDoubtForeignAidBlocker(self, action, chatId, userId, queryId, messageId):
+        if not self.foreignAidAction:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
+            return
+
+        self.foreignAidAction.handleSomeoneDoubtForeignAidBlocker(action, chatId, userId, queryId, messageId)
 
 
 
@@ -256,11 +277,16 @@ class PlayerStep:
         self.endStep()
 
     def handleChooseCardToOpenByDoubt(self, action, chatId, userId, queryId, messageId):
-        if not self.doubtContext:
-            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
-            return
+        doubtContext = None
+        if self.foreignAidAction:
+            doubtContext = self.foreignAidAction.doubtContext
+        elif self.doubtContext:
+            doubtContext = self.doubtContext
 
-        self.doubtContext.handleChooseCardToOpenByDoubt(action, chatId, userId, queryId, messageId)
+        if doubtContext:
+            doubtContext.handleChooseCardToOpenByDoubt(action, chatId, userId, queryId, messageId)
+        else:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
 
     def handleChooseCardForAmbassadoring(self, action, chatId, userId, queryId, messageId):
         if userId != self.activePlayer.user.userId:

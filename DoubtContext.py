@@ -29,14 +29,16 @@ class DoubtStateMachine:
 
 class DoubtContext:
 
-    def __init__(self, actionType, game, activePlayer, continueActionHandler, abortActionHandler):
+    def __init__(self, actionType, game, activePlayer, callbackDataAlias, continueActionHandler, abortActionHandler):
         self.actionType = actionType
         self.game = game
         self.activePlayer = activePlayer
         self.doubtedPlayer = None
+        self.callbackDataAlias = callbackDataAlias
         self.continueActionHandler = continueActionHandler
         self.abortActionHandler = abortActionHandler
 
+        self.timingMessageContext = None
         self.currentDoubtedPlayerPersonalMessageId = 0
 
         self.stateMachine = DoubtStateMachine()
@@ -44,7 +46,7 @@ class DoubtContext:
     def start(self):
         baseText = self.doubtWelcomeText()
         buttons = [[{'text': 'Я усомняюсь',
-                     'callbackData': StepAction.doubtActivePlayer.name}]]
+                     'callbackData': self.callbackDataAlias}]]
 
         text = baseText + '\n' + TimingMessageContext.timingStringFor(DOUBT_TIMER, DOUBT_TIMER)
 
@@ -60,8 +62,8 @@ class DoubtContext:
 
     def handleSomeoneDoubtActivePlayer(self, action, chatId, userId, queryId, messageId):
 
-        applyDoubtStateResult = self.stateMachine.applyState(DoubtState.DoubtStart)
-        if applyDoubtStateResult == False:
+        applyStateResult = self.stateMachine.applyState(DoubtState.DoubtStart)
+        if applyStateResult == False:
             answerCallbackQuery(queryId, 'Поздно..')
             return
 
@@ -72,13 +74,13 @@ class DoubtContext:
         answerCallbackQuery(queryId)
 
         self.timingMessageContext.stopAnimate()
-
         self.doubtActivePlayerCommonMessageId = 0
 
         activePlayer = self.activePlayer
-        doubtCardName = self.actionType.name
         doubtedPlayer = self.game.findPlayerByUserId(userId)
         self.doubtedPlayer = doubtedPlayer
+
+        doubtCardName = self.actionType.name
 
         wrong = activePlayer.hasCardByName(doubtCardName)
         die = False
@@ -154,14 +156,18 @@ class DoubtContext:
     def doubtWelcomeText(self):
         userName = self.activePlayer.user.combinedNameStrig()
 
-        text = ''
-        if self.actionType == Card.Ambassador:
-            text = '{} заявляет, что он Ambassador и хочет порыться📚 в колоде'.format(userName)
-        elif self.actionType == Card.Duke:
-            text = '{} заявляет, что он Duke и хочет взять 3 монеты🥉'.format(userName)
-
+        text = '{} {}'.format(userName, self.doubtWelcomeTextTitle())
         text += '\nКто хочет усомниться?\n\n'
         text += 'У вас есть на это {} секунд'.format(DOUBT_TIMER)
+        return text
+
+    def doubtWelcomeTextTitle(self):
+        text = ''
+        if self.actionType == Card.Ambassador:
+            text = 'заявляет, что он Ambassador и хочет порыться📚 в колоде.'
+        elif self.actionType == Card.Duke:
+            text = 'заявляет, что он Duke и хочет взять 3 монеты🥉.'
+
         return text
 
     def sendDoubtResultMessage(self, wrong, die, lostedCard, doubtCardName):

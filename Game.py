@@ -168,7 +168,7 @@ class Game:
     def endPlayerStep(self):
         self.currentGameStep = None
 
-        time.sleep(2)
+        time.sleep(STEPS_TIMER)
 
         self.processNextPlayerStep()
 
@@ -205,6 +205,16 @@ class Game:
             if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
                 return
             self.currentGameStep.handleSomeoneDoubtActivePlayer(callbackData, chatId, userId, queryId, messageId)
+
+        elif callbackData == StepAction.tryBlockForeignAid.name:
+            if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
+                return
+            self.currentGameStep.handleSomeoneTryBlockForeignAid(callbackData, chatId, userId, queryId, messageId)
+
+        elif callbackData == StepAction.doubtForeignAidBlocker.name:
+            if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
+                return
+            self.currentGameStep.handleSomeoneDoubtForeignAidBlocker(callbackData, chatId, userId, queryId, messageId)
 
         elif ACTION_DELIMETER in callbackData:
             if not self.checkValidPersonalButtonTap(userId, messageId, queryId):

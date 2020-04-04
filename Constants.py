@@ -18,5 +18,10 @@ class StepAction(Enum):
 
     chooseCardForAmbassadoring = 11
 
+    tryBlockForeignAid = 12
+    doubtForeignAidBlocker = 13
+
 DOUBT_TIMER = 12
+
+STEPS_TIMER = 2
 
