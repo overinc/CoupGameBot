@@ -1,7 +1,8 @@
 from APIMethods import *
 from Constants import *
 from TimingMessageContext import *
-from DoubtContextForeignAidBlock import *
+from DoubtContext import *
+from Localization import *
 
 class State(Enum):
     WantForeignAid = 1
@@ -78,7 +79,12 @@ class ForeignAidAction:
         dukedPlayer = self.game.findPlayerByUserId(userId)
         self.dukedPlayer = dukedPlayer
 
-        self.doubtContext = DoubtContextForeignAidBlock(Card.Duke, self.game, dukedPlayer, StepAction.doubtForeignAidBlocker.name, self.endActionWithBlocked,
+        self.doubtContext = DoubtContext(Card.Duke,
+                                         self.game,
+                                         dukedPlayer,
+                                         StepAction.doubtForeignAidBlocker.name,
+                                         doubt_welcome_text_title_foreign_aid_blocker,
+                                         self.endActionWithBlocked,
                                          self.endActionWithSuccess)
         self.doubtContext.start()
 

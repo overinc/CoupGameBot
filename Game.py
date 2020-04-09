@@ -158,13 +158,22 @@ class Game:
         self.deck.putCard(card)
         player.addCard(self.deck.getCard())
 
-
+    def playersToSteal(self, activePlayer):
+        players = []
+        for player in self.players:
+            if player == activePlayer:
+                if not DEBUG_MODE:
+                    continue
+            if player.isAlive():
+                if player.coinsCount > 0:
+                    players.append(player)
+        return players
 
 
     def processNextPlayerStep(self):
         player = self.findNextPlayer()
 
-        self.currentGameStep = PlayerStep(self, player)
+        self.currentGameStep = GameStep(self, player)
         self.currentGameStep.startStep()
 
     def endPlayerStep(self):

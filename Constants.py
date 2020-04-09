@@ -21,6 +21,8 @@ class StepAction(Enum):
     tryBlockForeignAid = 12
     doubtForeignAidBlocker = 13
 
+    chooseActionForBlockStealing = 14
+
 DOUBT_TIMER = 11
 
 STEPS_PAUSE_TIMER = 2

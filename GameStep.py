@@ -5,8 +5,10 @@ from APIMethods import *
 from Constants import *
 from Entities import *
 from DoubtContext import *
+from Localization import *
 from Actions.Ambassador import *
 from Actions.ForeignAid import *
+from Actions.Captain import *
 
 StepPrimaryActions = [StepAction.takeCoin.name,
                       StepAction.tryTakeTwo.name,
@@ -39,7 +41,7 @@ class PlayerStateMachine:
         return False
 
 
-class PlayerStep:
+class GameStep:
     def __init__(self, game, activePlayer):
         self.game = game
 
@@ -52,6 +54,7 @@ class PlayerStep:
         self.activePlayerAction = None
 
         self.foreignAidAction = None
+        self.captainAction = None
 
         self.currentActivePlayerPersonalMessageId = 0
         self.currentTargetPlayerPersonalMessageId = 0
@@ -62,28 +65,35 @@ class PlayerStep:
     def startStep(self):
         self.game.sendCurrentGameState()
 
-        buttons = [[{'text': 'Ходить', 'url': self.game.botDeeplink}]]
-        sendMessage(self.game.gameGroupchatId, 'Ход игрока {}'.format(self.activePlayer.user.combinedNameStrig()), buttons)
+        activePlayer = self.activePlayer
 
-        personalMessage = self.activePlayer.playerStateString('\nВаш ход!', True)
+        buttons = [[{'text': 'Ходить', 'url': self.game.botDeeplink}]]
+        sendMessage(self.game.gameGroupchatId, 'Ход игрока {}'.format(activePlayer.user.combinedNameStrig()), buttons)
+
+        personalMessage = activePlayer.playerStateString('\nВаш ход!', True)
 
         buttons = []
-        if self.activePlayer.coinsCount >= 10:
+        if activePlayer.coinsCount >= 10:
             buttons.append([{'text': 'Выстрелить за 7 монет', 'callbackData': '{}'.format(StepAction.simpleShot.name)}])
         else:
             buttons.append([{'text': 'Взять монетку', 'callbackData': '{}'.format(StepAction.takeCoin.name)}])
+
             buttons.append([{'text': 'Попытаться взять 2 монетки', 'callbackData': '{}'.format(StepAction.tryTakeTwo.name)}])
 
-            if self.activePlayer.coinsCount >= 7:
+            if activePlayer.coinsCount >= 7:
                 buttons.append([{'text': 'Выстрелить за 7 монет', 'callbackData': '{}'.format(StepAction.simpleShot.name)}])
 
             buttons.append([{'text': 'Прикинуться Ambassador\nи порыться в колоде', 'callbackData': '{}'.format(StepAction.shuffle.name)}])
-            if self.activePlayer.coinsCount >= 3:
+
+            if activePlayer.coinsCount >= 3:
                 buttons.append([{'text': 'Прикинуться Assassin\nи пальнуть за 3 монетки', 'callbackData': '{}'.format(StepAction.snipeShot.name)}])
-            buttons.append([{'text': 'Прикинуться Captain\nи украсть две 2 монетки', 'callbackData': '{}'.format(StepAction.steal.name)}])
+
+            if len(self.game.playersToSteal(activePlayer)) > 0:
+                buttons.append([{'text': 'Прикинуться Captain\nи украсть две 2 монетки', 'callbackData': '{}'.format(StepAction.steal.name)}])
+
             buttons.append([{'text': 'Прикинуться Duke\nи взять 3 монетки', 'callbackData': '{}'.format(StepAction.takeThreeCoins.name)}])
 
-        self.currentActivePlayerPersonalMessageId = sendMessage(self.activePlayer.user.userId, personalMessage, buttons)
+        self.currentActivePlayerPersonalMessageId = sendMessage(activePlayer.user.userId, personalMessage, buttons)
 
         self.stateMachine.applyState(PlayerStepState.ChooseAction)
 
@@ -99,33 +109,33 @@ class PlayerStep:
             answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
             return
 
-        # answerCallbackQuery(queryId)
-
         self.currentActivePlayerPersonalMessageId = 0
 
         if action == StepAction.takeCoin.name:
-            answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
             self.handleTakeCoinAction(chatId, userId, queryId, messageId)
+
         elif action == StepAction.tryTakeTwo.name:
-            answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
             self.handleTryTakeTwoCoinsAction(chatId, userId, queryId, messageId)
+
         elif action == StepAction.simpleShot.name:
-            answerCallbackQuery(queryId)
             self.handleSimpleShotAction(chatId, userId, queryId, messageId)
+
         elif action == StepAction.shuffle.name:
-            answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
             self.handleAmbassadorAction(chatId, userId, queryId, messageId)
+
         elif action == StepAction.snipeShot.name:
-            answerCallbackQuery(queryId)
             self.handleAssassinAction(chatId, userId, queryId, messageId)
+
         elif action == StepAction.steal.name:
-            answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
             self.handleCaptainAction(chatId, userId, queryId, messageId)
+
         elif action == StepAction.takeThreeCoins.name:
-            answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
             self.handleDukeAction(chatId, userId, queryId, messageId)
 
+
     def handleTakeCoinAction(self, chatId, userId, queryId, messageId):
+        answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
+
         self.stateMachine.applyState(PlayerStepState.MakeAction)
 
         activePlayer = self.activePlayer
@@ -138,39 +148,65 @@ class PlayerStep:
         self.endStep()
 
     def handleTryTakeTwoCoinsAction(self, chatId, userId, queryId, messageId):
+        answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
+
         self.foreignAidAction = ForeignAidAction(self.activePlayer, self.game, self.endStep)
         self.foreignAidAction.start()
 
     def handleSimpleShotAction(self, chatId, userId, queryId, messageId):
+        answerCallbackQuery(queryId)
+
         activePlayer = self.activePlayer
 
+        text = 'В кого стрелять будем?'
         buttons = []
         for player in self.game.players:
             if player == activePlayer:
-                if len(self.game.players) >= 2: # для дебаг игры с самим собой
+                if not DEBUG_MODE:
                     continue
             if player.isAlive():
                 buttons.append([{'text': player.user.combinedNameStrig(),
                                  'callbackData': '{}{}{}'.format(StepAction.simpleShot.name, ACTION_DELIMETER, player.user.userId)}])
 
-        self.currentActivePlayerPersonalMessageId = sendMessage(activePlayer.user.userId, 'В кого стрелять будем?', buttons)
+        self.currentActivePlayerPersonalMessageId = sendMessage(activePlayer.user.userId, text, buttons)
 
     def handleAmbassadorAction(self, chatId, userId, queryId, messageId):
+        answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
+
         self.activePlayerActionType = Card.Ambassador
 
-        self.doubtContext = DoubtContext(self.activePlayerActionType, self.game, self.activePlayer, StepAction.doubtActivePlayer.name, self.continueAction, self.endStep)
+        self.doubtContext = DoubtContext(self.activePlayerActionType,
+                                         self.game,
+                                         self.activePlayer,
+                                         StepAction.doubtActivePlayer.name,
+                                         doubt_welcome_text_title_ambassador,
+                                         self.continueAction,
+                                         self.endStep)
         self.doubtContext.start()
 
     def handleAssassinAction(self, chatId, userId, queryId, messageId):
+        answerCallbackQuery(queryId)
+
         self.endStep()
 
     def handleCaptainAction(self, chatId, userId, queryId, messageId):
-        self.endStep()
+        answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
+
+        self.captainAction = CaptainAction(self.activePlayer, self.game, self.endStep)
+        self.captainAction.start()
 
     def handleDukeAction(self, chatId, userId, queryId, messageId):
+        answerCallbackQuery(queryId, '', self.game.groupchatDeeplink)
+
         self.activePlayerActionType = Card.Duke
 
-        self.doubtContext = DoubtContext(self.activePlayerActionType, self.game, self.activePlayer, StepAction.doubtActivePlayer.name, self.continueAction, self.endStep)
+        self.doubtContext = DoubtContext(self.activePlayerActionType,
+                                         self.game,
+                                         self.activePlayer,
+                                         doubt_welcome_text_title_duke,
+                                         StepAction.doubtActivePlayer.name,
+                                         self.continueAction,
+                                         self.endStep)
         self.doubtContext.start()
 
 
@@ -183,11 +219,16 @@ class PlayerStep:
                 answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
                 return
 
-        if not self.doubtContext:
-            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
-            return
+        doubtContext = None
+        if self.captainAction:
+            doubtContext = self.captainAction.doubtContext
+        elif self.doubtContext:
+            doubtContext = self.doubtContext
 
-        self.doubtContext.handleSomeoneDoubtActivePlayer(action, chatId, userId, queryId, messageId)
+        if doubtContext:
+            doubtContext.handleSomeoneDoubtActivePlayer(action, chatId, userId, queryId, messageId)
+        else:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
 
     def handleSomeoneTryBlockForeignAid(self, action, chatId, userId, queryId, messageId):
         if not DEBUG_MODE:
@@ -209,21 +250,23 @@ class PlayerStep:
         self.foreignAidAction.handleSomeoneDoubtForeignAidBlocker(action, chatId, userId, queryId, messageId)
 
 
-
-
     def handleStepComplexAction(self, action, chatId, userId, queryId, messageId):
         actionType = action.split(ACTION_DELIMETER)[0]
 
         if actionType == StepAction.simpleShot.name:
-            self.handleSimpleShotChooseTarget(action, chatId, userId, queryId, messageId)
+            self.handleChooseTargetForSimpleShot(action, chatId, userId, queryId, messageId)
         elif actionType == StepAction.chooseCardToOpenByKill.name:
             self.handleChooseCardToOpenByKill(action, chatId, userId, queryId, messageId)
         elif actionType == StepAction.chooseCardToOpenByDoubt.name:
             self.handleChooseCardToOpenByDoubt(action, chatId, userId, queryId, messageId)
         elif actionType == StepAction.chooseCardForAmbassadoring.name:
             self.handleChooseCardForAmbassadoring(action, chatId, userId, queryId, messageId)
+        elif actionType == StepAction.steal.name:
+            self.handleChooseTargetForStealing(action, chatId, userId, queryId, messageId)
+        elif actionType == StepAction.chooseActionForBlockStealing.name:
+            self.handleChooseActionForBlockStealing(action, chatId, userId, queryId, messageId)
 
-    def handleSimpleShotChooseTarget(self, action, chatId, userId, queryId, messageId):
+    def handleChooseTargetForSimpleShot(self, action, chatId, userId, queryId, messageId):
         if userId != self.activePlayer.user.userId:
             answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
             return
@@ -285,6 +328,8 @@ class PlayerStep:
         doubtContext = None
         if self.foreignAidAction:
             doubtContext = self.foreignAidAction.doubtContext
+        elif self.captainAction:
+            doubtContext = self.captainAction.doubtContext
         elif self.doubtContext:
             doubtContext = self.doubtContext
 
@@ -306,6 +351,23 @@ class PlayerStep:
 
         self.activePlayerAction.handleChooseCard(action)
 
+    def handleChooseTargetForStealing(self, action, chatId, userId, queryId, messageId):
+        if userId != self.activePlayer.user.userId:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+            return
+
+        if not self.captainAction:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
+            return
+
+        self.captainAction.handleChooseTargetForStealing(action, chatId, userId, queryId, messageId)
+
+    def handleChooseActionForBlockStealing(self, action, chatId, userId, queryId, messageId):
+        if not self.captainAction:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
+            return
+
+        self.captainAction.handleChooseActionForBlockStealing(action, chatId, userId, queryId, messageId)
 
 
 

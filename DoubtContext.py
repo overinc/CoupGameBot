@@ -29,12 +29,13 @@ class DoubtStateMachine:
 
 class DoubtContext:
 
-    def __init__(self, actionType, game, activePlayer, callbackDataAlias, continueActionHandler, abortActionHandler):
+    def __init__(self, actionType, game, activePlayer, callbackDataAlias, doubtWelcomeTextTitle, continueActionHandler, abortActionHandler):
         self.actionType = actionType
         self.game = game
         self.activePlayer = activePlayer
         self.doubtedPlayer = None
         self.callbackDataAlias = callbackDataAlias
+        self.doubtWelcomeTextTitle = doubtWelcomeTextTitle
         self.continueActionHandler = continueActionHandler
         self.abortActionHandler = abortActionHandler
 
@@ -156,18 +157,9 @@ class DoubtContext:
     def doubtWelcomeText(self):
         userName = self.activePlayer.user.combinedNameStrig()
 
-        text = '{} {}'.format(userName, self.doubtWelcomeTextTitle())
+        text = '{} {}'.format(userName, self.doubtWelcomeTextTitle)
         text += '\nКто хочет усомниться?\n\n'
         text += 'У вас есть на это {} секунд'.format(DOUBT_TIMER)
-        return text
-
-    def doubtWelcomeTextTitle(self):
-        text = ''
-        if self.actionType == Card.Ambassador:
-            text = 'заявляет, что он Ambassador и хочет порыться📚 в колоде.'
-        elif self.actionType == Card.Duke:
-            text = 'заявляет, что он Duke и хочет взять 3 монеты🥉.'
-
         return text
 
     def sendDoubtResultMessage(self, wrong, die, lostedCard, doubtCardName):
