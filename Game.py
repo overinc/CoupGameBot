@@ -38,8 +38,12 @@ class Game:
         self.membersWelcomeMessageText = 'Добро пожаловать в Coup!\nКто будет играть - отмечайтесь'
         self.membersWelcomeMessageButtons = [[{'text': 'Я готов!', 'callbackData': 'wantPlay'}]]
 
-        self.minPlayersCount = 1
+        self.minPlayersCount = 2
         self.maxPlayersCount = 6
+
+        if DEBUG_MODE:
+            self.minPlayersCount = 1
+
 
     def clearGame(self):
         self.gameGroupchatId = ""
@@ -85,8 +89,9 @@ class Game:
         messageId = event['payload']['msgId']
         text = event['payload']['text'].lower()
 
-        # if not '@' in chatId:
-        #     return
+        if not DEBUG_MODE:
+            if not '@' in chatId:
+                return
 
         if BOT_NICK.lower() in text or BOT_ID in text:
             if self.stateMachine.applyState(GameState.Welcome) == False:
@@ -96,12 +101,13 @@ class Game:
             self.gameGroupchatId = chatId
             self.sendWelcomeMessage()
         else:
-            if self.stateMachine.applyState(GameState.Welcome) == False:
-                return
+            if DEBUG_MODE:
+                if self.stateMachine.applyState(GameState.Welcome) == False:
+                    return
 
-            self.clearGame()
-            self.gameGroupchatId = chatId
-            self.sendWelcomeMessage()
+                self.clearGame()
+                self.gameGroupchatId = chatId
+                self.sendWelcomeMessage()
 
     def sendWelcomeMessage(self):
         self.membersWelcomeMessageId = sendMessage(self.gameGroupchatId, self.membersWelcomeMessageText, self.membersWelcomeMessageButtons)
@@ -138,10 +144,6 @@ class Game:
             player.addCard(self.deck.getCard())
             player.addCard(self.deck.getCard())
 
-            # player.lostedCards.append(self.deck.getCard())
-            # player.lostedCards.append(self.deck.getCard())
-            # player.lostedCards.append(self.deck.getCard())
-
         for player in self.players:
             sendMessage(player.user.userId, player.playerCardsString())
 
@@ -168,7 +170,7 @@ class Game:
     def endPlayerStep(self):
         self.currentGameStep = None
 
-        time.sleep(STEPS_TIMER)
+        time.sleep(STEPS_PAUSE_TIMER)
 
         self.processNextPlayerStep()
 

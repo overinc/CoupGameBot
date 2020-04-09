@@ -1,11 +1,14 @@
 from enum import Enum
 from random import randrange, choice
+from Constants import *
 
 class Player:
     def __init__(self, user):
         self.user = user
 
         self.coinsCount = 2
+        if DEBUG_MANY_MONEY:
+            self.coinsCount = 7
 
         self.cards = []
         self.lostedCards = []
@@ -124,7 +127,11 @@ class User:
         self.name = name
 
     def combinedNameStrig(self):
-        return self.name + ' (' + '@' + self.nick +')'
+        name = self.name
+        if PRINT_PLAYER_NAME_WITH_NICK:
+            name += ' (' + '@' + self.nick +')'
+        return name
+
 
 class Deck:
     def __init__(self):

@@ -21,7 +21,12 @@ class StepAction(Enum):
     tryBlockForeignAid = 12
     doubtForeignAidBlocker = 13
 
-DOUBT_TIMER = 12
+DOUBT_TIMER = 11
 
-STEPS_TIMER = 2
+STEPS_PAUSE_TIMER = 2
+
+PRINT_PLAYER_NAME_WITH_NICK = True
+
+DEBUG_MODE = True
+DEBUG_MANY_MONEY = False
 

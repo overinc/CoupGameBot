@@ -83,9 +83,10 @@ class ForeignAidAction:
         self.doubtContext.start()
 
     def handleSomeoneDoubtForeignAidBlocker(self, action, chatId, userId, queryId, messageId):
-        # if userId == self.dukedPlayer.user.userId:
-        #     answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
-        #     return
+        if not DEBUG_MODE:
+            if userId == self.dukedPlayer.user.userId:
+                answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+                return
 
         applyStateResult = self.stateMachine.applyState(State.DoubtBlocker)
         if applyStateResult == False:

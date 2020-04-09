@@ -41,6 +41,7 @@ def run():
                     logging.error('No events in JSON: {}'.format(json))
                     continue
 
+                print(json)
                 for event in json['events']:
                     max_event_id = max(max_event_id, game.handleEvent(event))
     except:

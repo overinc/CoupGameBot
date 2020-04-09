@@ -129,7 +129,10 @@ class PlayerStep:
         self.stateMachine.applyState(PlayerStepState.MakeAction)
 
         activePlayer = self.activePlayer
-        activePlayer.addCoins(1)
+        if DEBUG_MANY_MONEY:
+            activePlayer.addCoins(10)
+        else:
+            activePlayer.addCoins(1)
 
         sendMessage(self.game.gameGroupchatId, activePlayer.user.combinedNameStrig() + ' взял 1 🥇монетку')
         self.endStep()
@@ -175,9 +178,10 @@ class PlayerStep:
 
 
     def handleSomeoneDoubtActivePlayer(self, action, chatId, userId, queryId, messageId):
-        # if userId == self.activePlayer.user.userId:
-        #     answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
-        #     return
+        if not DEBUG_MODE:
+            if userId == self.activePlayer.user.userId:
+                answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+                return
 
         if not self.doubtContext:
             answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
@@ -186,9 +190,10 @@ class PlayerStep:
         self.doubtContext.handleSomeoneDoubtActivePlayer(action, chatId, userId, queryId, messageId)
 
     def handleSomeoneTryBlockForeignAid(self, action, chatId, userId, queryId, messageId):
-        # if userId == self.activePlayer.user.userId:
-        #     answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
-        #     return
+        if not DEBUG_MODE:
+            if userId == self.activePlayer.user.userId:
+                answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+                return
 
         if not self.foreignAidAction:
             answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
