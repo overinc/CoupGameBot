@@ -14,13 +14,11 @@ class StepAction(Enum):
     chooseCardToOpenByKill = 8
 
     doubtActivePlayer = 9
-    chooseCardToOpenByDoubt = 10
+    doubtSecondaryPlayer = 10
+    chooseCardToOpenByDoubt = 11
 
-    chooseCardForAmbassadoring = 11
-
-    tryBlockForeignAid = 12
-    doubtForeignAidBlocker = 13
-
+    chooseCardForAmbassadoring = 12
+    tryBlockForeignAid = 13
     chooseActionForBlockStealing = 14
 
 DOUBT_TIMER = 11

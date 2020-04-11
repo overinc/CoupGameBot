@@ -12,6 +12,7 @@ class State(Enum):
     ChooseTarget = 1
     DeclareTarget = 2
     DeclareProtect = 3
+    DoubtProtect = 4
 
 class StateMachine:
     def __init__(self):
@@ -20,6 +21,7 @@ class StateMachine:
         self.transitions = {
                             State.ChooseTarget: [State.DeclareTarget],
                             State.DeclareTarget: [State.DeclareProtect],
+                            State.DeclareProtect: [State.DoubtProtect],
                             }
 
     def applyState(self, state):
@@ -82,6 +84,8 @@ class CaptainAction:
         self.doubtContext.start()
 
     def continueAction(self):
+        self.doubtContext = None
+
         text = "Попытка воровства продолжается. Слово за {}".format(self.targetPlayer.user.combinedNameStrig())
         buttons = [[{'text': 'Выбрать действие', 'url': self.game.botDeeplink}]]
         sendMessage(self.game.gameGroupchatId, text, buttons)
@@ -103,12 +107,49 @@ class CaptainAction:
 
         protectAction = action.split(ACTION_DELIMETER)[1]
 
-        if protectAction == BLOCK_STEALING_BY_AMBASSADOR:
-            self.finishAction()
-        elif protectAction == BLOCK_STEALING_BY_CAPTAIN:
-            self.finishAction()
+        if protectAction == BLOCK_STEALING_BY_AMBASSADOR or protectAction == BLOCK_STEALING_BY_CAPTAIN:
+            self.tryBlockAction(protectAction)
         elif protectAction == BLOCK_STEALING_NOTHING:
             self.finishAction()
+
+    def tryBlockAction(self, blockType):
+        card = None
+        doubtWelcomeTextTitle = ''
+        if blockType == BLOCK_STEALING_BY_AMBASSADOR:
+            card = Card.Ambassador
+            doubtWelcomeTextTitle = doubt_welcome_text_title_captain_blocker_by_ambassador
+        elif blockType == BLOCK_STEALING_BY_CAPTAIN:
+            card = Card.Captain
+            doubtWelcomeTextTitle = doubt_welcome_text_title_captain_blocker_by_captain
+
+        self.doubtContext = DoubtContext(card,
+                                         self.game,
+                                         self.targetPlayer,
+                                         StepAction.doubtSecondaryPlayer.name,
+                                         doubtWelcomeTextTitle,
+                                         self.blockSuccessAction,
+                                         self.finishAction)
+
+        self.doubtContext.start()
+
+    def handleSomeoneDoubtSecondaryPlayer(self, action, chatId, userId, queryId, messageId):
+        if not DEBUG_MODE:
+            if userId == self.targetPlayer.user.userId:
+                answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
+                return
+
+        applyStateResult = self.stateMachine.applyState(State.DoubtProtect)
+        if applyStateResult == False:
+            answerCallbackQuery(queryId, 'Поздно..')
+            return
+
+        self.doubtContext.handleSomeoneDoubtActivePlayer(action, chatId, userId, queryId, messageId)
+
+    def blockSuccessAction(self):
+        text = '{} заблокировал кражу'.format(self.targetPlayer.user.combinedNameStrig())
+        sendMessage(self.game.gameGroupchatId, text)
+
+        self.completion()
 
     def finishAction(self):
         if self.targetPlayer.coinsCount == 1:
@@ -118,7 +159,14 @@ class CaptainAction:
 
         self.targetPlayer.takeOutCoins(2)
 
-        text = '{} не воспротивился, и {} украл у него 2 🥈монетки'.format(self.targetPlayer.user.combinedNameStrig(), self.activePlayer.user.combinedNameStrig())
+        text = ''
+        activePlayerName = self.activePlayer.user.combinedNameStrig()
+        targetPlayerName = self.targetPlayer.user.combinedNameStrig()
+        if self.stateMachine.state ==  State.DeclareProtect:
+            text = '{} не воспротивился, и {} украл у него 2 🥈монетки'.format(targetPlayerName, activePlayerName)
+        elif self.stateMachine.state ==  State.DoubtProtect:
+            text = '{} попытался заблокировать кражу, но его уличили, и {} украл у него 2 🥈монетки'.format(targetPlayerName, activePlayerName)
+
         sendMessage(self.game.gameGroupchatId, text)
 
         self.completion()

@@ -242,12 +242,19 @@ class GameStep:
 
         self.foreignAidAction.handleSomeoneTryBlockForeignAid(action, chatId, userId, queryId, messageId)
 
-    def handleSomeoneDoubtForeignAidBlocker(self, action, chatId, userId, queryId, messageId):
-        if not self.foreignAidAction:
-            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
-            return
+    def handleSomeoneDoubtSecondaryPlayer(self, action, chatId, userId, queryId, messageId):
+        activeAction = None
+        if self.foreignAidAction:
+            activeAction = self.foreignAidAction
+        elif self.captainAction:
+            activeAction = self.captainAction
 
-        self.foreignAidAction.handleSomeoneDoubtForeignAidBlocker(action, chatId, userId, queryId, messageId)
+        if activeAction:
+            activeAction.handleSomeoneDoubtSecondaryPlayer(action, chatId, userId, queryId, messageId)
+        else:
+            answerCallbackQuery(queryId, 'Куды тычишь!? Не туда..')
+
+
 
 
     def handleStepComplexAction(self, action, chatId, userId, queryId, messageId):

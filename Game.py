@@ -222,10 +222,10 @@ class Game:
                 return
             self.currentGameStep.handleSomeoneTryBlockForeignAid(callbackData, chatId, userId, queryId, messageId)
 
-        elif callbackData == StepAction.doubtForeignAidBlocker.name:
+        elif callbackData == StepAction.doubtSecondaryPlayer.name:
             if not self.checkValidPersonalButtonTap(userId, messageId, queryId):
                 return
-            self.currentGameStep.handleSomeoneDoubtForeignAidBlocker(callbackData, chatId, userId, queryId, messageId)
+            self.currentGameStep.handleSomeoneDoubtSecondaryPlayer(callbackData, chatId, userId, queryId, messageId)
 
         elif ACTION_DELIMETER in callbackData:
             if not self.checkValidPersonalButtonTap(userId, messageId, queryId):

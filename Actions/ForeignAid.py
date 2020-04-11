@@ -82,13 +82,13 @@ class ForeignAidAction:
         self.doubtContext = DoubtContext(Card.Duke,
                                          self.game,
                                          dukedPlayer,
-                                         StepAction.doubtForeignAidBlocker.name,
+                                         StepAction.doubtSecondaryPlayer.name,
                                          doubt_welcome_text_title_foreign_aid_blocker,
                                          self.endActionWithBlocked,
                                          self.endActionWithSuccess)
         self.doubtContext.start()
 
-    def handleSomeoneDoubtForeignAidBlocker(self, action, chatId, userId, queryId, messageId):
+    def handleSomeoneDoubtSecondaryPlayer(self, action, chatId, userId, queryId, messageId):
         if not DEBUG_MODE:
             if userId == self.dukedPlayer.user.userId:
                 answerCallbackQuery(queryId, 'Куды тычишь!? Не твое..')
