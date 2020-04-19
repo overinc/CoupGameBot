@@ -1,6 +1,5 @@
 from APIMethods import *
 from Constants import *
-from TimingMessageContext import *
 from DoubtContext import *
 from Localization import *
 
@@ -40,14 +39,14 @@ class CaptainAction:
         self.game = game
         self.completion = completion
 
-        self.wantForeignAidCommonMessageId = 0
-
-        self.timingMessageContext = None
         self.doubtContext = None
 
         self.targetPlayer = None
 
         self.stateMachine = StateMachine()
+
+    def __del__(self):
+        print('CaptainAction dealloc')
 
     def start(self):
         text = "У кого воровать будем?"
@@ -90,7 +89,7 @@ class CaptainAction:
         buttons = [[{'text': 'Выбрать действие', 'url': self.game.botDeeplink}]]
         sendMessage(self.game.gameGroupchatId, text, buttons)
 
-        text = "Что будем делать?"
+        text = "У вас ворует монетки Captain. Что будем делать?"
         buttons = []
         buttons.append([{'text': 'Прикинуться Ambassador', 'callbackData': '{}{}{}'.format(StepAction.chooseActionForBlockStealing.name, ACTION_DELIMETER, BLOCK_STEALING_BY_AMBASSADOR)}])
         buttons.append([{'text': 'Прикинуться Captain', 'callbackData': '{}{}{}'.format(StepAction.chooseActionForBlockStealing.name, ACTION_DELIMETER, BLOCK_STEALING_BY_CAPTAIN)}])

@@ -128,7 +128,7 @@ class User:
 
     def combinedNameStrig(self):
         name = self.name
-        if PRINT_PLAYER_NAME_WITH_NICK:
+        if PRINT_PLAYER_NAME_WITH_NICK and self.nick:
             name += ' (' + '@' + self.nick +')'
         return name
 

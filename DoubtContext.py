@@ -44,6 +44,9 @@ class DoubtContext:
 
         self.stateMachine = DoubtStateMachine()
 
+    def __del__(self):
+        print('DoubtContext dealloc')
+
     def start(self):
         baseText = self.doubtWelcomeText()
         buttons = [[{'text': 'Я усомняюсь',

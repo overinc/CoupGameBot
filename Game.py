@@ -158,6 +158,16 @@ class Game:
         self.deck.putCard(card)
         player.addCard(self.deck.getCard())
 
+    def playersToShot(self, activePlayer):
+        players = []
+        for player in self.players:
+            if player == activePlayer:
+                if not DEBUG_MODE:
+                    continue
+            if player.isAlive():
+                players.append(player)
+        return players
+
     def playersToSteal(self, activePlayer):
         players = []
         for player in self.players:
@@ -234,9 +244,9 @@ class Game:
 
     def handleWantPlayButtonTap(self, chatId, userId, queryId, messageId):
         response = getInfo(userId)
-        userNick = response['nick']
-        userFirstName = response['firstName']
-        userLastName = response['lastName']
+        userNick = response.get('nick')
+        userFirstName = response.get('firstName')
+        userLastName = response.get('lastName')
         userName = userFirstName
         if userLastName:
             userName += " " + userLastName
