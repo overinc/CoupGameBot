@@ -43,6 +43,9 @@ class ForeignAidAction:
 
         self.stateMachine = StateMachine()
 
+    def __del__(self):
+        print('ForeignAidAction dealloc')
+
     def start(self):
         baseText = self.foreignAidAWelcomeText()
         buttons = [[{'text': 'Я блокирую',

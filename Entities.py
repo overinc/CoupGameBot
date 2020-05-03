@@ -127,10 +127,16 @@ class User:
         self.name = name
 
     def combinedNameStrig(self):
-        name = self.name
-        if PRINT_PLAYER_NAME_WITH_NICK and self.nick:
-            name += ' (' + '@' + self.nick +')'
-        return name
+        if PRINT_PLAYER_NAME_WITH_NICK:
+            name = self.name
+            if self.nick:
+                name += ' (' + '@' + self.nick +')'
+            return name
+
+        return '@[' + self.userId + ']'
+
+    def rawNameStrig(self):
+        return self.name
 
 
 class Deck:

@@ -1,4 +1,13 @@
 
+morph_card_text = 'Прикинуться'
+use_card_text = 'Воспользоваться'
+
+choose_start_action_text_ambassador = '{} Ambassador\nи порыться в колоде'
+choose_start_action_text_captain = '{} Captain\nи украсть две 2 монетки'
+choose_start_action_text_assassin = '{} Assassin\nи пальнуть за 3 монетки'
+choose_start_action_text_duke = '{} Duke\nи взять 3 монетки'
+
+
 
 doubt_welcome_text_title_ambassador = 'заявляет, что он Ambassador и хочет порыться📚 в колоде.'
 doubt_welcome_text_title_duke = 'заявляет, что он Duke и хочет взять 3 монеты🥉.'

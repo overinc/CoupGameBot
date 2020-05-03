@@ -21,6 +21,9 @@ class GameStateMachine:
                             GameState.Welcome : [GameState.Welcome, GameState.Game],
                             GameState.Game : [GameState.Idle]}
 
+    def __del__(self):
+        print('GameStateMachine dealloc')
+
     def applyState(self, state):
         if state in self.transitions[self.state]:
             self.state = state
@@ -40,7 +43,6 @@ class Game:
 
         self.minPlayersCount = 2
         self.maxPlayersCount = 6
-
         if DEBUG_MODE:
             self.minPlayersCount = 1
 
@@ -52,12 +54,16 @@ class Game:
         self.players = []
         self.currentPlayerIndex = -1
 
+        self.deadPlayersOrdered = []
+
         self.deck = Deck()
 
         self.currentGameStep = None
 
         self.botDeeplink = ''
         self.groupchatDeeplink = ''
+
+        self.gameEnded = False
 
     def handleEvent(self, event):
         try:
@@ -76,7 +82,8 @@ class Game:
         chatId = event['payload']['chat']['chatId']
         for newMember in event['payload']['newMembers']:
             if newMember['nick'] == BOT_NICK:
-                if self.stateMachine.applyState(GameState.Welcome) == False:
+                applyStateResult = self.stateMachine.applyState(GameState.Welcome)
+                if applyStateResult == False:
                     return
 
                 self.clearGame()
@@ -91,10 +98,12 @@ class Game:
 
         if not DEBUG_MODE:
             if not '@' in chatId:
+                sendMessage(chatId, 'Для того чтобы поиграть в Coup добавьте меня в группу где будет проходить игра')
                 return
 
         if BOT_NICK.lower() in text or BOT_ID in text:
-            if self.stateMachine.applyState(GameState.Welcome) == False:
+            applyStateResult = self.stateMachine.applyState(GameState.Welcome)
+            if applyStateResult == False:
                 return
 
             self.clearGame()
@@ -102,12 +111,20 @@ class Game:
             self.sendWelcomeMessage()
         else:
             if DEBUG_MODE:
-                if self.stateMachine.applyState(GameState.Welcome) == False:
+                applyStateResult = self.stateMachine.applyState(GameState.Welcome)
+                if applyStateResult == False:
                     return
 
                 self.clearGame()
                 self.gameGroupchatId = chatId
                 self.sendWelcomeMessage()
+                return
+            if '/start' in text:
+                a = 1
+
+            if '/cancel' in text:
+                a = 1
+
 
     def sendWelcomeMessage(self):
         self.membersWelcomeMessageId = sendMessage(self.gameGroupchatId, self.membersWelcomeMessageText, self.membersWelcomeMessageButtons)
@@ -124,7 +141,8 @@ class Game:
         sendMessage(self.gameGroupchatId, text)
 
     def startGame(self):
-        if self.stateMachine.applyState(GameState.Game) == False:
+        applyStateResult = self.stateMachine.applyState(GameState.Game)
+        if applyStateResult == False:
             return
 
         self.generateInitialState()
@@ -179,6 +197,51 @@ class Game:
                     players.append(player)
         return players
 
+    def onPlayerDead(self, player):
+        self.deadPlayersOrdered.insert(0, player)
+        self.checkGameEnd()
+
+    def checkGameEnd(self):
+        alivePlayers = 0
+        alivePlayer = None
+        for player in self.players:
+            if player.isAlive():
+                alivePlayers += 1
+                alivePlayer = player
+
+        if alivePlayers <= 1:
+            self.gameEnded = True
+
+            time.sleep(STEPS_PAUSE_TIMER)
+
+            self.sendFinalMessage(alivePlayer)
+            self.clearGame()
+            self.stateMachine = GameStateMachine()
+
+
+    def sendFinalMessage(self, winner):
+        text = 'Игра окончена!'
+        text += '\n\n'
+        text += '🥇Победил {}'.format(winner.user.combinedNameStrig())
+        text += '\n\n'
+        text += 'Остальные места:'
+        text += '\n'
+        for i in range(len(self.deadPlayersOrdered)):
+            player = self.deadPlayersOrdered[i]
+            playerName = player.user.combinedNameStrig()
+            prefix = ''
+            if i == 0:
+                prefix = '🥈'
+            elif i == 1:
+                prefix = '🥉'
+            else:
+                prefix = '{}. '.format(i + 2)
+            text += prefix + playerName
+            text += '\n'
+        sendMessage(self.gameGroupchatId, text)
+
+
+
 
     def processNextPlayerStep(self):
         player = self.findNextPlayer()
@@ -188,6 +251,9 @@ class Game:
 
     def endPlayerStep(self):
         self.currentGameStep = None
+
+        if self.gameEnded:
+            return
 
         time.sleep(STEPS_PAUSE_TIMER)
 
@@ -285,5 +351,10 @@ class Game:
         if self.stateMachine.state != GameState.Game:
             answerCallbackQuery(queryId, 'Куды тычишь!? Нет игры..')
             return False
+
+        for player in self.deadPlayersOrdered:
+            if player.user.userId == userId:
+                answerCallbackQuery(queryId, 'Куды тычишь!? Не мешай другим играть..')
+                return False
 
         return True

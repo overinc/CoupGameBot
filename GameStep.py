@@ -87,15 +87,19 @@ class GameStep:
             if activePlayer.coinsCount >= 7:
                 buttons.append([{'text': 'Выстрелить за 7 монет', 'callbackData': '{}'.format(StepAction.simpleShot.name)}])
 
-            buttons.append([{'text': 'Прикинуться Ambassador\nи порыться в колоде', 'callbackData': '{}'.format(StepAction.shuffle.name)}])
-
-            if activePlayer.coinsCount >= 3:
-                buttons.append([{'text': 'Прикинуться Assassin\nи пальнуть за 3 монетки', 'callbackData': '{}'.format(StepAction.snipeShot.name)}])
+            buttons.append([{'text': choose_start_action_text_ambassador.format(use_card_text if activePlayer.hasCardByName(Card.Ambassador.name) else morph_card_text),
+                             'callbackData': '{}'.format(StepAction.shuffle.name)}])
 
             if len(self.game.playersToSteal(activePlayer)) > 0:
-                buttons.append([{'text': 'Прикинуться Captain\nи украсть две 2 монетки', 'callbackData': '{}'.format(StepAction.steal.name)}])
+                buttons.append([{'text': choose_start_action_text_captain.format(use_card_text if activePlayer.hasCardByName(Card.Captain.name) else morph_card_text),
+                                 'callbackData': '{}'.format(StepAction.steal.name)}])
 
-            buttons.append([{'text': 'Прикинуться Duke\nи взять 3 монетки', 'callbackData': '{}'.format(StepAction.takeThreeCoins.name)}])
+            if activePlayer.coinsCount >= 3:
+                buttons.append([{'text': choose_start_action_text_assassin.format(use_card_text if activePlayer.hasCardByName(Card.Assassin.name) else morph_card_text),
+                                 'callbackData': '{}'.format(StepAction.snipeShot.name)}])
+
+            buttons.append([{'text': choose_start_action_text_duke.format(use_card_text if activePlayer.hasCardByName(Card.Duke.name) else morph_card_text),
+                             'callbackData': '{}'.format(StepAction.takeThreeCoins.name)}])
 
         self.currentActivePlayerPersonalMessageId = sendMessage(activePlayer.user.userId, personalMessage, buttons)
 
@@ -167,7 +171,7 @@ class GameStep:
         buttons = []
         players = self.game.playersToShot(self.activePlayer)
         for player in players:
-            buttons.append([{'text': player.user.combinedNameStrig(),
+            buttons.append([{'text': player.user.rawNameStrig(),
                              'callbackData': '{}{}{}'.format(StepAction.simpleShot.name, ACTION_DELIMETER, player.user.userId)}])
 
         self.currentActivePlayerPersonalMessageId = sendMessage(activePlayer.user.userId, text, buttons)
@@ -321,6 +325,9 @@ class GameStep:
             text += 'и добил его 💀' + '\n'
             text += '❌ ' + card.openedString()
             sendMessage(self.game.gameGroupchatId, text)
+
+            self.game.onPlayerDead(targetPlayer)
+
             self.endStep()
 
 

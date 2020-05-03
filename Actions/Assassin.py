@@ -52,7 +52,7 @@ class AssassinAction:
         buttons = []
         players = self.game.playersToShot(self.activePlayer)
         for player in players:
-            buttons.append([{'text': player.user.combinedNameStrig(),
+            buttons.append([{'text': player.user.rawNameStrig(),
                              'callbackData': '{}{}{}'.format(StepAction.snipeShot.name, ACTION_DELIMETER,
                                                              player.user.userId)}])
         sendMessage(self.activePlayer.user.userId, text, buttons)
@@ -92,7 +92,7 @@ class AssassinAction:
 
         text = "В вас стреляет Assasin. Что будем делать?"
         buttons = []
-        buttons.append([{'text': 'Прикинуться Contessa',
+        buttons.append([{'text': '{} Contessa'.format(use_card_text if self.targetPlayer.hasCardByName(Card.Contessa.name) else morph_card_text),
                          'callbackData': '{}{}{}'.format(StepAction.chooseActionForBlockSnipeShot.name, ACTION_DELIMETER,
                                                          BLOCK_SNIPE_SHOT_BY_CONTESSA)}])
 
@@ -177,6 +177,9 @@ class AssassinAction:
                 text += 'и добил💀 его\n'
                 text += '❌ ' + card.openedString()
                 sendMessage(self.game.gameGroupchatId, text)
+
+                self.game.onPlayerDead(self.targetPlayer)
+
                 self.completion()
         elif self.stateMachine.state == State.DoubtProtect:
             card = self.targetPlayer.killOneCard()
@@ -184,6 +187,9 @@ class AssassinAction:
                 targetPlayerName, activePlayerName)
             text += '❌ ' + card.openedString()
             sendMessage(self.game.gameGroupchatId, text)
+
+            self.game.onPlayerDead(self.targetPlayer)
+
             self.completion()
 
     def handleChooseCardToOpenByKill(self, action, chatId, userId, queryId, messageId):

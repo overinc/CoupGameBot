@@ -53,7 +53,7 @@ class CaptainAction:
         buttons = []
         players = self.game.playersToSteal(self.activePlayer)
         for player in players:
-            buttons.append([{'text': player.user.combinedNameStrig(),
+            buttons.append([{'text': player.user.rawNameStrig(),
                              'callbackData': '{}{}{}'.format(StepAction.steal.name, ACTION_DELIMETER,
                                                              player.user.userId)}])
         sendMessage(self.activePlayer.user.userId, text, buttons)
@@ -91,9 +91,12 @@ class CaptainAction:
 
         text = "У вас ворует монетки Captain. Что будем делать?"
         buttons = []
-        buttons.append([{'text': 'Прикинуться Ambassador', 'callbackData': '{}{}{}'.format(StepAction.chooseActionForBlockStealing.name, ACTION_DELIMETER, BLOCK_STEALING_BY_AMBASSADOR)}])
-        buttons.append([{'text': 'Прикинуться Captain', 'callbackData': '{}{}{}'.format(StepAction.chooseActionForBlockStealing.name, ACTION_DELIMETER, BLOCK_STEALING_BY_CAPTAIN)}])
-        buttons.append([{'text': 'Ничего не делать', 'callbackData': '{}{}{}'.format(StepAction.chooseActionForBlockStealing.name, ACTION_DELIMETER, BLOCK_STEALING_NOTHING)}])
+        buttons.append([{'text': '{} Ambassador'.format(use_card_text if self.targetPlayer.hasCardByName(Card.Ambassador.name) else morph_card_text),
+                         'callbackData': '{}{}{}'.format(StepAction.chooseActionForBlockStealing.name, ACTION_DELIMETER, BLOCK_STEALING_BY_AMBASSADOR)}])
+        buttons.append([{'text': '{} Captain'.format(use_card_text if self.targetPlayer.hasCardByName(Card.Captain.name) else morph_card_text),
+                         'callbackData': '{}{}{}'.format(StepAction.chooseActionForBlockStealing.name, ACTION_DELIMETER, BLOCK_STEALING_BY_CAPTAIN)}])
+        buttons.append([{'text': 'Ничего не делать',
+                         'callbackData': '{}{}{}'.format(StepAction.chooseActionForBlockStealing.name, ACTION_DELIMETER, BLOCK_STEALING_NOTHING)}])
         sendMessage(self.targetPlayer.user.userId, text, buttons)
 
     def handleChooseActionForBlockStealing(self, action, chatId, userId, queryId, messageId):

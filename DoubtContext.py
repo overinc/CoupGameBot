@@ -104,6 +104,8 @@ class DoubtContext:
                 lostedCard = doubtedPlayer.killOneCard()
                 self.sendDoubtResultMessage(wrong, die, lostedCard, doubtCardName)
 
+                self.game.onPlayerDead(doubtedPlayer)
+
                 self.continueActionHandler()
             else:
                 self.stateMachine.applyState(DoubtState.LoseDoubt)
@@ -118,6 +120,9 @@ class DoubtContext:
             if die:
                 lostedCard = activePlayer.killOneCard()
                 self.sendDoubtResultMessage(wrong, die, lostedCard, doubtCardName)
+
+                self.game.onPlayerDead(activePlayer)
+
                 self.abortActionHandler()
 
             else:
