@@ -1,3 +1,4 @@
+import weakref
 from APIMethods import *
 from Constants import *
 
@@ -8,7 +9,6 @@ GET_CARD_ACTION = 'get'
 
 
 class AmbassadorAction:
-
     def __init__(self, player, deck, completion):
         self.player = player
         self.deck = deck
@@ -18,7 +18,10 @@ class AmbassadorAction:
 
         self.ambassadoringMessageId = ''
 
-        self.completion = completion
+        self._completion = weakref.WeakMethod(completion)
+
+    def __del__(self):
+        print('AmbassadorAction dealloc')
 
 
     def start(self):
@@ -60,7 +63,7 @@ class AmbassadorAction:
             for card in self.newCards:
                 self.deck.putCard(card)
 
-            self.completion()
+            self._completion()()
 
 
     def generateButtons(self):

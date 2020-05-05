@@ -1,3 +1,4 @@
+import weakref
 from APIMethods import *
 from Constants import *
 from TimingMessageContext import *
@@ -30,9 +31,9 @@ class StateMachine:
 class ForeignAidAction:
 
     def __init__(self, activePlayer, game, completion):
-        self.activePlayer = activePlayer
-        self.game = game
-        self.completion = completion
+        self._activePlayer = weakref.ref(activePlayer)
+        self._game = weakref.ref(game)
+        self._completion = weakref.WeakMethod(completion)
 
         self.wantForeignAidCommonMessageId = 0
 
@@ -53,18 +54,17 @@ class ForeignAidAction:
 
         text = baseText + '\n' + TimingMessageContext.timingStringFor(DOUBT_TIMER, DOUBT_TIMER)
 
-        self.wantForeignAidCommonMessageId = sendMessage(self.game.gameGroupchatId, text, buttons)
+        self.wantForeignAidCommonMessageId = sendMessage(self._game().gameGroupchatId, text, buttons)
 
-        self.timingMessageContext = TimingMessageContext(DOUBT_TIMER, self.game.gameGroupchatId,
+        self.timingMessageContext = TimingMessageContext(DOUBT_TIMER, self._game().gameGroupchatId,
                                                          self.wantForeignAidCommonMessageId, baseText, buttons,
-                                                         self.handleTimerEnd)
+                                                         self.handleTimerEnd)        #
         self.timingMessageContext.startAnimate()
 
     def handleTimerEnd(self):
         self.endActionWithSuccess()
 
     def handleSomeoneTryBlockForeignAid(self, action, chatId, userId, queryId, messageId):
-
         applyStateResult = self.stateMachine.applyState(State.TryBlock)
         if applyStateResult == False:
             answerCallbackQuery(queryId, 'Поздно..')
@@ -78,12 +78,12 @@ class ForeignAidAction:
         self.timingMessageContext.stopAnimate()
         self.wantForeignAidCommonMessageId = 0
 
-        activePlayer = self.activePlayer
-        dukedPlayer = self.game.findPlayerByUserId(userId)
+        activePlayer = self._activePlayer()
+        dukedPlayer = self._game().findPlayerByUserId(userId)
         self.dukedPlayer = dukedPlayer
 
         self.doubtContext = DoubtContext(Card.Duke,
-                                         self.game,
+                                         self._game(),
                                          dukedPlayer,
                                          StepAction.doubtSecondaryPlayer.name,
                                          doubt_welcome_text_title_foreign_aid_blocker,
@@ -109,22 +109,22 @@ class ForeignAidAction:
 
 
     def endActionWithBlocked(self):
-        sendMessage(self.game.gameGroupchatId, '{} заблокировал взятие монеток'.format(self.dukedPlayer.user.combinedNameStrig()))
+        sendMessage(self._game().gameGroupchatId, '{} заблокировал взятие монеток'.format(self.dukedPlayer.user.combinedNameStrig()))
 
-        self.completion()
+        self._completion()()
 
     def endActionWithSuccess(self):
-        self.activePlayer.addCoins(2)
+        self._activePlayer().addCoins(2)
 
-        sendMessage(self.game.gameGroupchatId, self.activePlayer.user.combinedNameStrig() + ' взял 2 🥈монетки')
+        sendMessage(self._game().gameGroupchatId, self._activePlayer().user.combinedNameStrig() + ' взял 2 🥈монетки')
 
-        self.completion()
+        self._completion()()
 
 
 
 
     def foreignAidAWelcomeText(self):
-        userName = self.activePlayer.user.combinedNameStrig()
+        userName = self._activePlayer().user.combinedNameStrig()
 
         text = '{} хочет взять 2 монеты🥈 из колоды'.format(userName)
 

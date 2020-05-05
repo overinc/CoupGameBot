@@ -1,3 +1,4 @@
+import weakref
 from APIMethods import *
 from Constants import *
 from DoubtContext import *
@@ -37,7 +38,7 @@ class CaptainAction:
     def __init__(self, activePlayer, game, completion):
         self.activePlayer = activePlayer
         self.game = game
-        self.completion = completion
+        self._completion = weakref.WeakMethod(completion)
 
         self.doubtContext = None
 
@@ -77,7 +78,7 @@ class CaptainAction:
                                          StepAction.doubtActivePlayer.name,
                                          doubtWelcomeTextTitle,
                                          self.continueAction,
-                                         self.completion)
+                                         self._completion())
 
 
         self.doubtContext.start()
@@ -151,7 +152,7 @@ class CaptainAction:
         text = '{} заблокировал кражу'.format(self.targetPlayer.user.combinedNameStrig())
         sendMessage(self.game.gameGroupchatId, text)
 
-        self.completion()
+        self._completion()()
 
     def finishAction(self):
         if self.targetPlayer.coinsCount == 1:
@@ -171,4 +172,4 @@ class CaptainAction:
 
         sendMessage(self.game.gameGroupchatId, text)
 
-        self.completion()
+        self._completion()()

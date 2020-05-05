@@ -1,3 +1,4 @@
+import weakref
 from enum import Enum
 from TimingMessageContext import *
 from Constants import *
@@ -31,13 +32,13 @@ class DoubtContext:
 
     def __init__(self, actionType, game, activePlayer, callbackDataAlias, doubtWelcomeTextTitle, continueActionHandler, abortActionHandler):
         self.actionType = actionType
-        self.game = game
+        self._game = weakref.ref(game)
         self.activePlayer = activePlayer
         self.doubtedPlayer = None
         self.callbackDataAlias = callbackDataAlias
         self.doubtWelcomeTextTitle = doubtWelcomeTextTitle
-        self.continueActionHandler = continueActionHandler
-        self.abortActionHandler = abortActionHandler
+        self._continueActionHandler = weakref.WeakMethod(continueActionHandler)
+        self._abortActionHandler = weakref.WeakMethod(abortActionHandler)
 
         self.timingMessageContext = None
         self.currentDoubtedPlayerPersonalMessageId = 0
@@ -54,15 +55,15 @@ class DoubtContext:
 
         text = baseText + '\n' + TimingMessageContext.timingStringFor(DOUBT_TIMER, DOUBT_TIMER)
 
-        self.doubtActivePlayerCommonMessageId = sendMessage(self.game.gameGroupchatId, text, buttons)
+        self.doubtActivePlayerCommonMessageId = sendMessage(self._game().gameGroupchatId, text, buttons)
 
-        self.timingMessageContext = TimingMessageContext(DOUBT_TIMER, self.game.gameGroupchatId,
+        self.timingMessageContext = TimingMessageContext(DOUBT_TIMER, self._game().gameGroupchatId,
                                                          self.doubtActivePlayerCommonMessageId, baseText, buttons,
                                                          self.handleTimerEnd)
         self.timingMessageContext.startAnimate()
 
     def handleTimerEnd(self):
-        self.continueActionHandler()
+        self._continueActionHandler()()
 
     def handleSomeoneDoubtActivePlayer(self, action, chatId, userId, queryId, messageId):
 
@@ -81,7 +82,7 @@ class DoubtContext:
         self.doubtActivePlayerCommonMessageId = 0
 
         activePlayer = self.activePlayer
-        doubtedPlayer = self.game.findPlayerByUserId(userId)
+        doubtedPlayer = self._game().findPlayerByUserId(userId)
         self.doubtedPlayer = doubtedPlayer
 
         doubtCardName = self.actionType.name
@@ -96,7 +97,7 @@ class DoubtContext:
                 die = True
 
         if wrong:
-            self.game.returnPlayerCardAndGetNew(activePlayer, doubtCardName)
+            self._game().returnPlayerCardAndGetNew(activePlayer, doubtCardName)
 
             sendMessage(activePlayer.user.userId, activePlayer.playerCardsString())
 
@@ -104,9 +105,9 @@ class DoubtContext:
                 lostedCard = doubtedPlayer.killOneCard()
                 self.sendDoubtResultMessage(wrong, die, lostedCard, doubtCardName)
 
-                self.game.onPlayerDead(doubtedPlayer)
+                self._game().onPlayerDead(doubtedPlayer)
 
-                self.continueActionHandler()
+                self._continueActionHandler()()
             else:
                 self.stateMachine.applyState(DoubtState.LoseDoubt)
 
@@ -121,9 +122,9 @@ class DoubtContext:
                 lostedCard = activePlayer.killOneCard()
                 self.sendDoubtResultMessage(wrong, die, lostedCard, doubtCardName)
 
-                self.game.onPlayerDead(activePlayer)
+                self._game().onPlayerDead(activePlayer)
 
-                self.abortActionHandler()
+                self._abortActionHandler()()
 
             else:
                 self.sendDoubtResultMessage(wrong, die, '', doubtCardName)
@@ -151,13 +152,13 @@ class DoubtContext:
         choosenCardName = action.split(ACTION_DELIMETER)[1]
         currentPlayer.killCardByName(choosenCardName)
 
-        sendMessage(self.game.gameGroupchatId,
+        sendMessage(self._game().gameGroupchatId,
                     '{}\nоткрыл ❌ {}'.format(currentPlayer.user.combinedNameStrig(), choosenCardName))
 
         if self.stateMachine.state == DoubtState.LoseDoubt:
-            self.continueActionHandler()
+            self._continueActionHandler()()
         elif self.stateMachine.state == DoubtState.InterruptAction:
-            self.abortActionHandler()
+            self._abortActionHandler()()
 
 
 
@@ -200,7 +201,7 @@ class DoubtContext:
             else:
                 text += '{} вскрывает одну карту'.format(activePlayer.user.combinedNameStrig()) + '\n'
 
-        sendMessage(self.game.gameGroupchatId, text)
+        sendMessage(self._game().gameGroupchatId, text)
 
     def sendCardOpenPersonalMessage(self, player, active):
         text = ''

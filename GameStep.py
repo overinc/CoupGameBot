@@ -52,8 +52,8 @@ class GameStep:
         self.stateMachine = PlayerStateMachine()
 
         self.activePlayerActionType = None
-        self.activePlayerAction = None
 
+        self.ambassadorAction = None
         self.foreignAidAction = None
         self.captainAction = None
         self.assassinAction = None
@@ -63,6 +63,11 @@ class GameStep:
         self.currentDoubtedPlayerPersonalMessageId = 0
 
     def __del__(self):
+        self.ambassadorAction = None
+        self.foreignAidAction = None
+        self.captainAction = None
+        self.assassinAction = None
+
         print('GameStep dealloc')
 
 
@@ -382,7 +387,7 @@ class GameStep:
 
         answerCallbackQuery(queryId)
 
-        self.activePlayerAction.handleChooseCard(action)
+        self.ambassadorAction.handleChooseCard(action)
 
     def handleChooseTargetForStealing(self, action, chatId, userId, queryId, messageId):
         if userId != self.activePlayer.user.userId:
@@ -431,8 +436,8 @@ class GameStep:
             self.continueDukeAction()
 
     def continueAmbassadorAction(self):
-        self.activePlayerAction = AmbassadorAction(self.activePlayer, self.game.deck, self.finalizeAmbassadorAction)
-        self.currentActivePlayerPersonalMessageId = self.activePlayerAction.start()
+        self.ambassadorAction = AmbassadorAction(self.activePlayer, self.game.deck, self.finalizeAmbassadorAction)
+        self.currentActivePlayerPersonalMessageId = self.ambassadorAction.start()
 
     def finalizeAmbassadorAction(self):
         activePlayer = self.activePlayer

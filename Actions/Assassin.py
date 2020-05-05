@@ -1,3 +1,4 @@
+import weakref
 from APIMethods import *
 from Constants import *
 from DoubtContext import *
@@ -35,7 +36,7 @@ class AssassinAction:
     def __init__(self, activePlayer, game, completion):
         self.activePlayer = activePlayer
         self.game = game
-        self.completion = completion
+        self._completion = weakref.WeakMethod(completion)
 
         self.doubtContext = None
 
@@ -79,7 +80,7 @@ class AssassinAction:
                                          StepAction.doubtActivePlayer.name,
                                          doubtWelcomeTextTitle,
                                          self.continueAction,
-                                         self.completion)
+                                         self._completion())
 
         self.doubtContext.start()
 
@@ -145,12 +146,12 @@ class AssassinAction:
                                                                          self.activePlayer.user.combinedNameStrig())
         sendMessage(self.game.gameGroupchatId, text)
 
-        self.completion()
+        self._completion()()
 
     def processSnipeShot(self):
 
         if self.targetPlayer.isDead():
-            self.completion()
+            self._completion()()
             return
 
         activePlayerName = self.activePlayer.user.combinedNameStrig()
@@ -180,7 +181,7 @@ class AssassinAction:
 
                 self.game.onPlayerDead(self.targetPlayer)
 
-                self.completion()
+                self._completion()()
         elif self.stateMachine.state == State.DoubtProtect:
             card = self.targetPlayer.killOneCard()
             text = '{} попытался заблокировать выстрел, но его уличили, и {} добил💀 его выстрелом\n'.format(
@@ -190,7 +191,7 @@ class AssassinAction:
 
             self.game.onPlayerDead(self.targetPlayer)
 
-            self.completion()
+            self._completion()()
 
     def handleChooseCardToOpenByKill(self, action, chatId, userId, queryId, messageId):
         if userId != self.targetPlayer.user.userId:
@@ -208,4 +209,4 @@ class AssassinAction:
 
         sendMessage(self.game.gameGroupchatId, '{}\nоткрыл ❌ {}'.format(self.targetPlayer.user.combinedNameStrig(), choosenCardName))
 
-        self.completion()
+        self._completion()()
