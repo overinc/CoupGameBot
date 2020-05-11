@@ -13,7 +13,6 @@ class TimingMessageContext:
         self._completion = weakref.WeakMethod(completion)
 
         self.stopped = False
-        print('TimingMessageContext alloc')
 
     def __del__(self):
         print('TimingMessageContext dealloc')

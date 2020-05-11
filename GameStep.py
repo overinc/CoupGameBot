@@ -1,6 +1,5 @@
 import threading
 from Entities import *
-from bot import *
 from APIMethods import *
 from Constants import *
 from Entities import *
@@ -78,6 +77,8 @@ class GameStep:
 
         buttons = [[{'text': 'Ходить', 'url': self.game.botDeeplink}]]
         sendMessage(self.game.gameGroupchatId, 'Ход игрока {}'.format(activePlayer.user.combinedNameStrig()), buttons)
+
+        sendMessage(activePlayer.user.userId, 'Карточка подсказки\nhttps://files.icq.net/get/0IDte000j6ZKjTgH1dTolS5eb8fe3e1aj')
 
         personalMessage = activePlayer.playerStateString('\nВаш ход!', True)
 

@@ -1,28 +1,23 @@
 import requests
-import logging
 import time
 import json
 from enum import Enum
-from bot import *
 from APIMethods import *
 from Entities import *
 from GameStep import *
 
 class GameState(Enum):
     Idle = 1
-    Welcome = 2
+    CollectPlayers = 2
     Game = 3
 
 class GameStateMachine:
     def __init__(self):
         self.state = GameState.Idle
 
-        self.transitions = {GameState.Idle : [GameState.Idle, GameState.Welcome],
-                            GameState.Welcome : [GameState.Welcome, GameState.Game],
+        self.transitions = {GameState.Idle : [GameState.Idle, GameState.CollectPlayers],
+                            GameState.CollectPlayers : [GameState.CollectPlayers, GameState.Game],
                             GameState.Game : [GameState.Idle]}
-
-    def __del__(self):
-        print('GameStateMachine dealloc')
 
     def applyState(self, state):
         if state in self.transitions[self.state]:
@@ -33,22 +28,31 @@ class GameStateMachine:
 
 
 class Game:
-    def __init__(self):
+    def __init__(self, gameGroupchatId, completion):
+        self.gameGroupchatId = gameGroupchatId
+        self._completion = weakref.WeakMethod(completion)
+
+        self.botDeeplink = 'https://icq.im/' + BOT_NICK
+        self.groupchatDeeplink = 'https://icq.im/' + self.gameGroupchatId
+        self.groupchatDeeplink = ''  # Отключаем бесконечное проваливание по чатам
+
         self.stateMachine = GameStateMachine()
 
         self.clearGame()
 
-        self.membersWelcomeMessageText = 'Добро пожаловать в Coup!\nКто будет играть - отмечайтесь'
-        self.membersWelcomeMessageButtons = [[{'text': 'Я готов!', 'callbackData': 'wantPlay'}]]
+        self.membersWelcomeMessageButtons = [[{'text': 'Я готов!', 'callbackData': 'wantPlay'}],
+                                             [{'text': 'Написать боту', 'url': self.botDeeplink}]]
 
         self.minPlayersCount = 2
         self.maxPlayersCount = 6
         if DEBUG_MODE:
             self.minPlayersCount = 1
 
+    def __del__(self):
+        print('Game dealloc')
+
 
     def clearGame(self):
-        self.gameGroupchatId = ""
         self.membersWelcomeMessageId = ""
 
         self.players = []
@@ -60,77 +64,22 @@ class Game:
 
         self.currentGameStep = None
 
-        self.botDeeplink = ''
-        self.groupchatDeeplink = ''
-
         self.gameEnded = False
 
-    def handleEvent(self, event):
-        try:
-            if event['type'] == "newMessage":
-                self.handleMessage(event)
-            elif event['type'] == "newChatMembers":
-                self.handleAddedToGroupchat(event)
-            elif event['type'] == "callbackQuery":
-                self.handleButtonTap(event)
-        except:
-            pass
+    def startCollectPlayers(self):
+        applyStateResult = self.stateMachine.applyState(GameState.CollectPlayers)
+        if applyStateResult == False:
+            return
 
-        return event['eventId']
-
-    def handleAddedToGroupchat(self, event):
-        chatId = event['payload']['chat']['chatId']
-        for newMember in event['payload']['newMembers']:
-            if newMember['nick'] == BOT_NICK:
-                applyStateResult = self.stateMachine.applyState(GameState.Welcome)
-                if applyStateResult == False:
-                    return
-
-                self.clearGame()
-
-                self.gameGroupchatId = chatId
-                self.sendWelcomeMessage()
-
-    def handleMessage(self, event):
-        chatId = event['payload']['chat']['chatId']
-        messageId = event['payload']['msgId']
-        text = event['payload']['text'].lower()
-
-        if not DEBUG_MODE:
-            if not '@' in chatId:
-                sendMessage(chatId, 'Для того чтобы поиграть в Coup добавьте меня в группу где будет проходить игра')
-                return
-
-        if BOT_NICK.lower() in text or BOT_ID in text:
-            applyStateResult = self.stateMachine.applyState(GameState.Welcome)
-            if applyStateResult == False:
-                return
-
-            self.clearGame()
-            self.gameGroupchatId = chatId
-            self.sendWelcomeMessage()
-        else:
-            if DEBUG_MODE:
-                applyStateResult = self.stateMachine.applyState(GameState.Welcome)
-                if applyStateResult == False:
-                    return
-
-                self.clearGame()
-                self.gameGroupchatId = chatId
-                self.sendWelcomeMessage()
-                return
-            if '/start' in text:
-                a = 1
-
-            if '/cancel' in text:
-                a = 1
+        self.clearGame()
+        self.sendWelcomeMessage()
 
 
     def sendWelcomeMessage(self):
-        self.membersWelcomeMessageId = sendMessage(self.gameGroupchatId, self.membersWelcomeMessageText, self.membersWelcomeMessageButtons)
+        self.membersWelcomeMessageId = sendMessage(self.gameGroupchatId, collect_players_base_message_text, self.membersWelcomeMessageButtons)
 
     def sendReadyToStartMessage(self):
-        sendMessage(self.gameGroupchatId, 'Все готовы?', [[{'text': 'Начать игру', 'callbackData': 'startGame'}]])
+        sendMessage(self.gameGroupchatId, 'Начинать игру можно от 2 до 6 игроков.\nВсе готовы?', [[{'text': 'Начать игру', 'callbackData': 'startGame'}]])
 
     def sendCurrentGameState(self):
         text = 'В колоде 🃏 {} карт\n\n'.format(len(self.deck.cards))
@@ -150,14 +99,6 @@ class Game:
         self.processNextPlayerStep()
 
     def generateInitialState(self):
-        # response = getInfo(self.gameGroupchatId)
-        # print(response)
-        # inviteLink = response['inviteLink']
-
-        self.botDeeplink = 'https://icq.im/' + BOT_NICK
-        self.groupchatDeeplink = 'https://icq.im/' + self.gameGroupchatId
-        self.groupchatDeeplink = '' # Отключаем бесконечное проваливание по чатам
-
         for player in self.players:
             player.addCard(self.deck.getCard())
             player.addCard(self.deck.getCard())
@@ -217,6 +158,7 @@ class Game:
             self.sendFinalMessage(alivePlayer)
             self.clearGame()
             self.stateMachine = GameStateMachine()
+            self._completion()(self)
 
 
     def sendFinalMessage(self, winner):
@@ -272,11 +214,11 @@ class Game:
 
 
     def handleButtonTap(self, event):
-        chatId = event['payload']['message']['chat']['chatId']
-        userId = event['payload']['from']['userId']
-        queryId = event['payload']['queryId']
-        messageId = event['payload']['message']['msgId']
-        callbackData = event['payload']['callbackData']
+        chatId = event.data.get('message').get('chat').get('chatId')
+        userId = event.data.get('from').get('userId')
+        queryId = event.data.get('queryId')
+        messageId = event.data.get('message').get('msgId')
+        callbackData = event.data.get('callbackData')
 
         if callbackData == 'wantPlay':
             self.handleWantPlayButtonTap(chatId, userId, queryId, messageId)
@@ -330,17 +272,17 @@ class Game:
 
         self.players.append(player)
 
-        if len(self.players) == self.minPlayersCount:
-            self.sendReadyToStartMessage()
-
         answerCallbackQuery(queryId)
 
-        updatedMessageText = self.membersWelcomeMessageText
+        updatedMessageText = collect_players_base_message_text
         updatedMessageText += '\n\nГотовы играть: \n'
         for player in self.players:
             updatedMessageText += player.user.combinedNameStrig() + '\n'
 
         editMessage(chatId, self.membersWelcomeMessageId, updatedMessageText, self.membersWelcomeMessageButtons)
+
+        if len(self.players) == self.minPlayersCount:
+            self.sendReadyToStartMessage()
 
     def handleStartGameButtonTap(self, chatId, userId, queryId, messageId):
         answerCallbackQuery(queryId)
