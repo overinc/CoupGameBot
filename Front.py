@@ -40,7 +40,7 @@ class Front:
     def processUserMessage(self, event):
         bot = self.bot
 
-        text = 'Возможность игры активирована.\n\n' \
+        text = 'Возможность игры активирована\n\n' \
                'Для того чтобы поиграть в Coup добавьте меня в группу где будет проходить игра'
 
         bot.send_text(chat_id=event.from_chat, text=text, inline_keyboard_markup=self.rulesButtons())
