@@ -18,7 +18,7 @@ class Front:
             response = bot.events_get(0)
 
         def messageEventHandler(bot, event):
-            if '@' in event.from_chat:
+            if '@chat.agent' in event.from_chat:
                 self.processGroupMessage(event)
             else:
                 self.processUserMessage(event)
@@ -38,15 +38,21 @@ class Front:
 
 
     def processUserMessage(self, event):
-        bot = self.bot
+        userId = event.from_chat
+        eventText = event.text.lower()
 
         text = 'Возможность игры активирована\n\n' \
                'Для того чтобы поиграть в Coup добавьте меня в группу где будет проходить игра'
 
-        bot.send_text(chat_id=event.from_chat, text=text, inline_keyboard_markup=self.rulesButtons())
+        self.bot.send_text(chat_id=event.from_chat, text=text, inline_keyboard_markup=self.rulesButtons())
 
         if DEBUG_MODE:
-            self.sendWelcomeMessage(event.from_chat)
+            self.sendWelcomeMessage(userId)
+
+            if '/new' in eventText or '/newgame' in eventText:
+                self.processNewGameCommand(userId)
+            elif '/cancel' in eventText:
+                self.processCancelCommand(userId)
 
     def processGroupMessage(self, event):
         chatId = event.from_chat
@@ -54,13 +60,9 @@ class Front:
 
         if BOT_NICK.lower() in eventText or BOT_ID in eventText:
             self.sendWelcomeMessage(chatId)
-        elif '/start' in eventText:
+        elif '/start' in eventText or '/help' in eventText:
             self.sendWelcomeMessage(chatId)
-        elif '/help' in eventText:
-            self.sendWelcomeMessage(chatId)
-        elif DEBUG_MODE:
-            self.sendWelcomeMessage(chatId)
-        elif '/new' in eventText:
+        elif '/new' in eventText or '/newgame' in eventText:
             self.processNewGameCommand(chatId)
         elif '/cancel' in eventText:
             self.processCancelCommand(chatId)
@@ -115,7 +117,7 @@ class Front:
         queryId = event.data.get('queryId')
         games = self.games
 
-        if '@' in chatId:
+        if '@chat.agent' in chatId:
             if chatId in games.keys():
                 game = games.get(chatId)
                 game.handleButtonTap(event)
@@ -124,6 +126,12 @@ class Front:
         else:
             for game in games.values():
                 if game.findPlayerByUserId(chatId):
+                    game.handleButtonTap(event)
+                    return
+
+            if DEBUG_MODE:
+                if chatId in games.keys():
+                    game = games.get(chatId)
                     game.handleButtonTap(event)
                     return
 

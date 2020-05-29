@@ -1,6 +1,4 @@
-import requests
-import time
-import json
+import random
 from enum import Enum
 from APIMethods import *
 from Entities import *
@@ -40,6 +38,8 @@ class Game:
 
         self.clearGame()
 
+        self.gameEnded = False
+
         self.membersWelcomeMessageButtons = [[{'text': 'Я готов!', 'callbackData': 'wantPlay'}],
                                              [{'text': 'Написать боту', 'url': self.botDeeplink}]]
 
@@ -57,14 +57,13 @@ class Game:
 
         self.players = []
         self.currentPlayerIndex = -1
+        self.roundNumber = 1
 
         self.deadPlayersOrdered = []
 
         self.deck = Deck()
 
         self.currentGameStep = None
-
-        self.gameEnded = False
 
     def startCollectPlayers(self):
         applyStateResult = self.stateMachine.applyState(GameState.CollectPlayers)
@@ -81,15 +80,19 @@ class Game:
     def sendReadyToStartMessage(self):
         sendMessage(self.gameGroupchatId, 'Начинать игру можно от 2 до 6 игроков.\nВсе готовы?', [[{'text': 'Начать игру', 'callbackData': 'startGame'}]])
 
-    def sendCurrentGameState(self):
+    def sendCurrentGameState(self, chatId):
         text = 'В колоде 🃏 {} карт\n\n'.format(len(self.deck.cards))
 
         for player in self.players:
             text += player.playerStateString() + '\n\n'
 
-        sendMessage(self.gameGroupchatId, text)
+        sendMessage(chatId, text)
 
     def startGame(self):
+        ok = self.checkPlayersApproved()
+        if not ok:
+            return
+
         applyStateResult = self.stateMachine.applyState(GameState.Game)
         if applyStateResult == False:
             return
@@ -98,7 +101,30 @@ class Game:
 
         self.processNextPlayerStep()
 
+    def checkPlayersApproved(self):
+        badPlayers = []
+        for player in self.players:
+            messageId = sendMessage(player.user.userId, 'Игра начинается...')
+            if messageId == None:
+                badPlayers.append(player)
+
+        if not badPlayers:
+            return True
+        else:
+            text = players_need_connect_bot_text + '\n\n'
+            text += 'Эти игроки еще не написали боту:\n'
+            for player in badPlayers:
+                text += player.user.combinedNameStrig() + '\n'
+
+            buttons = [[{'text': 'Написать боту', 'url': self.botDeeplink}]]
+
+            sendMessage(self.gameGroupchatId, text, buttons)
+            return False
+
+
     def generateInitialState(self):
+        random.shuffle(self.players)
+
         for player in self.players:
             player.addCard(self.deck.getCard())
             player.addCard(self.deck.getCard())
@@ -189,7 +215,7 @@ class Game:
         player = self.findNextPlayer()
 
         self.currentGameStep = GameStep(self, player)
-        self.currentGameStep.startStep()
+        self.currentGameStep.startStep(self.roundNumber)
 
     def endPlayerStep(self):
         self.currentGameStep = None
@@ -205,6 +231,7 @@ class Game:
         self.currentPlayerIndex += 1
         if self.currentPlayerIndex >= len(self.players):
             self.currentPlayerIndex = 0
+            self.roundNumber += 1
 
         player = self.players[self.currentPlayerIndex]
         if player.isDead():

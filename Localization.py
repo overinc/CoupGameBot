@@ -1,8 +1,11 @@
 from Credentials import *
 
+
+players_need_connect_bot_text = 'Для игры участникам сначала надо написать @{} личное сообщение'.format(BOT_NICK)
+
 collect_players_base_message_text = 'Собираем игроков в Coup!\n\n' \
-                                    'Для игры участникам сначала надо написать @{} личное сообщение\n\n' \
-                                    'Кто готов играть - отмечайтесь'.format(BOT_NICK)
+                                    '{}\n\n' \
+                                    'Кто готов играть - отмечайтесь'.format(players_need_connect_bot_text)
 
 morph_card_text = 'Прикинуться'
 use_card_text = 'Воспользоваться'

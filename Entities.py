@@ -66,7 +66,7 @@ class Player:
             self.coinsCount = 0
 
     def playerStateString(self, additionalText="", personalMessage = False):
-        text = self.user.combinedNameStrig()
+        text = self.user.rawNameStrig()
         if additionalText:
             text += ' ' + additionalText
         text += '\n'
@@ -82,11 +82,15 @@ class Player:
         if (personalMessage):
             text += self.playerCardsString()
 
+        playerLostedCardsString = self.playerLostedCardsString()
         text += self.playerLostedCardsString()
 
         if self.isDead():
             return text
 
+        if playerLostedCardsString:
+            text += '\n' \
+                    ''
         text += self.playerCoinsString()
         return text
 
@@ -104,8 +108,12 @@ class Player:
             return ''
 
         text = ''
+        i = 0
         for lostedCard in self.lostedCards:
-            text += '❌ ' + lostedCard.openedString() + '\n'
+            text += '❌ ' + lostedCard.openedString()
+            if i < len(self.lostedCards) - 1:
+                text += '/n'
+            i += 1
         return text
 
     def playerCoinsString(self):
@@ -165,18 +173,6 @@ class Card(Enum):
     Captain = 3
     Duke = 4
     Contessa = 5
-
-    # def name(self):
-    #     if self == Card.Ambassador:
-    #         return 'Ambassador'
-    #     if self == Card.Assassin:
-    #         return 'Assassin'
-    #     if self == Card.Captain:
-    #         return 'Captain'
-    #     if self == Card.Duke:
-    #         return 'Duke'
-    #     if self == Card.Contessa:
-    #         return 'Contessa'
 
     def openedString(self):
         if self == Card.Ambassador:

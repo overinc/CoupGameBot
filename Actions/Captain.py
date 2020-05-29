@@ -86,6 +86,10 @@ class CaptainAction:
     def continueAction(self):
         self.doubtContext = None
 
+        if self.targetPlayer.isDead():
+            self.finishAction()
+            return
+
         text = "Попытка воровства продолжается. Слово за {}".format(self.targetPlayer.user.combinedNameStrig())
         buttons = [[{'text': 'Выбрать действие', 'url': self.game.botDeeplink}]]
         sendMessage(self.game.gameGroupchatId, text, buttons)
@@ -149,8 +153,9 @@ class CaptainAction:
         self.doubtContext.handleSomeoneDoubtActivePlayer(action, chatId, userId, queryId, messageId)
 
     def blockSuccessAction(self):
-        text = '{} заблокировал кражу'.format(self.targetPlayer.user.combinedNameStrig())
-        sendMessage(self.game.gameGroupchatId, text)
+        if not self.game.gameEnded:
+            text = '{} заблокировал кражу'.format(self.targetPlayer.user.combinedNameStrig())
+            sendMessage(self.game.gameGroupchatId, text)
 
         self._completion()()
 
@@ -162,14 +167,17 @@ class CaptainAction:
 
         self.targetPlayer.takeOutCoins(2)
 
-        text = ''
-        activePlayerName = self.activePlayer.user.combinedNameStrig()
-        targetPlayerName = self.targetPlayer.user.combinedNameStrig()
-        if self.stateMachine.state ==  State.DeclareProtect:
-            text = '{} не воспротивился, и {} украл у него 2 🥈монетки'.format(targetPlayerName, activePlayerName)
-        elif self.stateMachine.state ==  State.DoubtProtect:
-            text = '{} попытался заблокировать кражу, но его уличили, и {} украл у него 2 🥈монетки'.format(targetPlayerName, activePlayerName)
+        if not self.game.gameEnded:
+            text = ''
+            activePlayerName = self.activePlayer.user.combinedNameStrig()
+            targetPlayerName = self.targetPlayer.user.combinedNameStrig()
+            if self.targetPlayer.isDead():
+                text = '{} украл у {} 2 🥈монетки'.format(activePlayerName, targetPlayerName)
+            elif self.stateMachine.state == State.DeclareProtect:
+                text = '{} не воспротивился, и {} украл у него 2 🥈монетки'.format(targetPlayerName, activePlayerName)
+            elif self.stateMachine.state == State.DoubtProtect:
+                text = '{} попытался заблокировать кражу, но его уличили в обмане, и {} украл у него 2 🥈монетки'.format(targetPlayerName, activePlayerName)
 
-        sendMessage(self.game.gameGroupchatId, text)
+            sendMessage(self.game.gameGroupchatId, text)
 
         self._completion()()

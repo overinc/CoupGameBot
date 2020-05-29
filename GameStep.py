@@ -70,17 +70,20 @@ class GameStep:
         print('GameStep dealloc')
 
 
-    def startStep(self):
-        self.game.sendCurrentGameState()
+    def startStep(self, roundNumber):
+        self.game.sendCurrentGameState(self.game.gameGroupchatId)
 
         activePlayer = self.activePlayer
 
         buttons = [[{'text': 'Ходить', 'url': self.game.botDeeplink}]]
-        sendMessage(self.game.gameGroupchatId, 'Ход игрока {}'.format(activePlayer.user.combinedNameStrig()), buttons)
+        sendMessage(self.game.gameGroupchatId, 'Круг номер {}\nХод игрока {}'.format(roundNumber, activePlayer.user.combinedNameStrig()), buttons)
+
+        self.game.sendCurrentGameState(activePlayer.user.userId)
 
         sendMessage(activePlayer.user.userId, 'Карточка подсказки\nhttps://files.icq.net/get/0IDte000j6ZKjTgH1dTolS5eb8fe3e1aj')
 
-        personalMessage = activePlayer.playerStateString('\nВаш ход!', True)
+        personalMessageText = activePlayer.playerStateString('\nВаш ход!', True)
+        personalMessageText += '\nЧто будем делать?'
 
         buttons = []
         if activePlayer.coinsCount >= 10:
@@ -107,7 +110,7 @@ class GameStep:
             buttons.append([{'text': choose_start_action_text_duke.format(use_card_text if activePlayer.hasCardByName(Card.Duke.name) else morph_card_text),
                              'callbackData': '{}'.format(StepAction.takeThreeCoins.name)}])
 
-        self.currentActivePlayerPersonalMessageId = sendMessage(activePlayer.user.userId, personalMessage, buttons)
+        self.currentActivePlayerPersonalMessageId = sendMessage(activePlayer.user.userId, personalMessageText, buttons)
 
         self.stateMachine.applyState(PlayerStepState.ChooseAction)
 
@@ -437,6 +440,8 @@ class GameStep:
             self.continueDukeAction()
 
     def continueAmbassadorAction(self):
+        sendMessage(self.game.gameGroupchatId, 'Никто не усомнился\n{} роется в колоде...'.format(self.activePlayer.user.combinedNameStrig()))
+
         self.ambassadorAction = AmbassadorAction(self.activePlayer, self.game.deck, self.finalizeAmbassadorAction)
         self.currentActivePlayerPersonalMessageId = self.ambassadorAction.start()
 

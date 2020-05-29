@@ -17,7 +17,7 @@ def sendMessage(chatId, message, buttons=[]):
 
     response = requests.get(f"{base_url}/messages/sendText", queryParams)
     print(response.text)
-    return json.loads(response.text)['msgId']
+    return json.loads(response.text).get('msgId')
 
 def editMessage(chatId, messageId, message, buttons=[]):
     queryParams = {'token': TOKEN}

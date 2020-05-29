@@ -87,6 +87,10 @@ class AssassinAction:
     def continueAction(self):
         self.doubtContext = None
 
+        if self.targetPlayer.isDead():
+            self._completion()()
+            return
+
         text = "Стрельба продолжается. Слово за {}".format(self.targetPlayer.user.combinedNameStrig())
         buttons = [[{'text': 'Выбрать действие', 'url': self.game.botDeeplink}]]
         sendMessage(self.game.gameGroupchatId, text, buttons)
@@ -184,7 +188,7 @@ class AssassinAction:
                 self._completion()()
         elif self.stateMachine.state == State.DoubtProtect:
             card = self.targetPlayer.killOneCard()
-            text = '{} попытался заблокировать выстрел, но его уличили, и {} добил💀 его выстрелом\n'.format(
+            text = '{} попытался заблокировать выстрел, но его уличили в обмане, и {} добил💀 его выстрелом\n'.format(
                 targetPlayerName, activePlayerName)
             text += '❌ ' + card.openedString()
             sendMessage(self.game.gameGroupchatId, text)
